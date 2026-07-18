@@ -34,9 +34,12 @@ Asl matn:
 """
     try:
         response = model.generate_content(prompt)
-        # response text if exists
-        translated = response.text.strip()
-        return translated
+        try:
+            translated = response.text.strip()
+            return translated
+        except ValueError:
+            print("Gemini API: Kontent AI xavfsizlik filtriga tushdi yoki ruxsat etilmadi.")
+            return "[FILTERED]"
     except Exception as e:
         print(f"Gemini API Error: {e}")
         return None

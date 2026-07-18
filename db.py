@@ -1,55 +1,76 @@
 import json
 import os
+import threading
 
 DB_FILE = "db.json"
+_db_lock = threading.Lock()
 
 def init_db():
-    if not os.path.exists(DB_FILE):
-        default_data = {
-            "donor_url": "https://lifehacker.com/rss",  # dunyodagi eng mashhur foydali maslahatlar sayti
-            "last_scraped_id": "",
-            "queued_posts": []
-        }
-        _save(default_data)
+    with _db_lock:
+        if not os.path.exists(DB_FILE):
+            default_data = {
+                "donor_url": "https://lifehacker.com/rss",  # dunyodagi eng mashhur foydali maslahatlar sayti
+                "last_scraped_id": "",
+                "queued_posts": []
+            }
+            _save_unlocked(default_data)
 
-def _load():
+def _load_unlocked():
+    if not os.path.exists(DB_FILE):
+        return {"donor_url": "https://lifehacker.com/rss", "last_scraped_id": "", "queued_posts": []}
     with open(DB_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def _save(data):
+def _save_unlocked(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def get_donor_url():
-    return _load().get("donor_url", "https://lifehacker.com/rss")
+    with _db_lock:
+        return _load_unlocked().get("donor_url", "https://lifehacker.com/rss")
 
 def set_donor_url(url):
-    data = _load()
-    data["donor_url"] = url
-    data["last_scraped_id"] = ""  # yangi saytdan yangi postlarni eslab qolish uchun
-    data["queued_posts"] = []     # eski navbatni tozalaymiz
-    _save(data)
+    with _db_lock:
+        data = _load_unlocked()
+        data["donor_url"] = url
+        data["last_scraped_id"] = ""  # yangi saytdan yangi postlarni eslab qolish uchun
+        data["queued_posts"] = []     # eski navbatni tozalaymiz
+        _save_unlocked(data)
 
 def get_last_id():
-    return _load().get("last_scraped_id", "")
+    with _db_lock:
+        return _load_unlocked().get("last_scraped_id", "")
 
 def set_last_id(msg_id):
-    data = _load()
-    data["last_scraped_id"] = msg_id
-    _save(data)
+    with _db_lock:
+        data = _load_unlocked()
+        data["last_scraped_id"] = msg_id
+        _save_unlocked(data)
 
 def add_queued_post(post_data):
-    data = _load()
-    data["queued_posts"].append(post_data)
-    _save(data)
+    with _db_lock:
+        data = _load_unlocked()
+        data["queued_posts"].append(post_data)
+        _save_unlocked(data)
+
+def requeue_post(post_data):
+    """
+    Xatoga uchragan yoxud jo'natish xatolikka tushgan po'stni qayta o'qish uchun navbatning boshiga qo'shadi.
+    """
+    with _db_lock:
+        data = _load_unlocked()
+        data["queued_posts"].insert(0, post_data)
+        _save_unlocked(data)
 
 def get_next_post():
-    data = _load()
-    if data["queued_posts"]:
-        post = data["queued_posts"].pop(0)
-        _save(data)
-        return post
-    return None
+    with _db_lock:
+        data = _load_unlocked()
+        if data["queued_posts"]:
+            post = data["queued_posts"].pop(0)
+            _save_unlocked(data)
+            return post
+        return None
 
 def get_queued_count():
-    return len(_load().get("queued_posts", []))
+    with _db_lock:
+        return len(_load_unlocked().get("queued_posts", []))

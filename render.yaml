@@ -3,7 +3,7 @@ services:
     name: avtokanal-bot
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    startCommand: python -u main.py
     autoDeploy: true
     envVars:
       - key: BOT_TOKEN

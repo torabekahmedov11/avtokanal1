@@ -46,6 +46,24 @@ def fetch_and_queue_posts():
     if new_posts:
         db.set_last_id(highest_id)
 
+def chunk_text(text, max_len=4096):
+    """Matnni ko'rsatilgan uzunlikka moslab ajratadi."""
+    chunks = []
+    while text:
+        if len(text) <= max_len:
+            chunks.append(text)
+            break
+        # oxirgi probel yoki newline orqali kesamiz
+        split_at = text.rfind('\n', 0, max_len)
+        if split_at == -1:
+            split_at = text.rfind(' ', 0, max_len)
+        if split_at == -1:
+            split_at = max_len
+            
+        chunks.append(text[:split_at].strip())
+        text = text[split_at:].strip()
+    return chunks
+
 def process_queue_and_post(bot: telebot.TeleBot):
     """
     Navbatda turgan eng birinchi postni olib, filtrdan o'tkazadi va chiqaradi.
@@ -61,6 +79,12 @@ def process_queue_and_post(bot: telebot.TeleBot):
     translated_text = ai_translator.translate_and_spice_up(post['text'])
     
     if not translated_text:
+        print("API yoki tarjimon xatoligi yuz berdi. Post qayta navbatga qo'shilmoqda...")
+        post['retries'] = post.get('retries', 0) + 1
+        if post['retries'] <= 3:
+            db.requeue_post(post)
+        else:
+            print(f"Post 3 marta urinishdan so'ng ham o'tmadi. Bekor qilindi: {post['id']}")
         return
 
     # Senzura testi
@@ -72,12 +96,16 @@ def process_queue_and_post(bot: telebot.TeleBot):
         video_url = post.get('video')
         image_url = post.get('image')
         
+        chunks = chunk_text(translated_text, 4000)
+        
         if len(translated_text) > 1000:
             if video_url:
                 bot.send_video(TARGET_CHANNEL_ID, video_url)
             elif image_url:
                 bot.send_photo(TARGET_CHANNEL_ID, image_url)
-            bot.send_message(TARGET_CHANNEL_ID, translated_text)
+            
+            for chunk in chunks:
+                bot.send_message(TARGET_CHANNEL_ID, chunk)
         else:
             if video_url:
                 bot.send_video(TARGET_CHANNEL_ID, video_url, caption=translated_text)
@@ -89,6 +117,11 @@ def process_queue_and_post(bot: telebot.TeleBot):
         print(f"✅ Kanalga POST yuborildi! (Qoldi: {db.get_queued_count()})")
     except Exception as e:
         print(f"Jo'natishda xato: {e}")
+        post['retries'] = post.get('retries', 0) + 1
+        if post['retries'] <= 3:
+            db.requeue_post(post)
+        else:
+            print(f"Kanalga yuborish 3 marta feyl bo'ldi. Tashlab yuborildi: {post['id']}")
 
 def setup_scheduler(bot: telebot.TeleBot):
     scheduler.add_job(
