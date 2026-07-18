@@ -3,7 +3,7 @@ import telebot
 import db
 import scraper
 import ai_translator
-from config import TARGET_CHANNEL_ID
+from config import TARGET_CHANNEL_ID, CHANNEL_LINK
 import datetime
 
 scheduler = BackgroundScheduler(timezone='Asia/Tashkent')
@@ -22,7 +22,6 @@ def fetch_and_queue_posts():
         return
         
     new_posts = []
-    # top_index is where last_id is located. By default, consider all as new.
     start_index = 0
     if last_id:
         for idx, post in enumerate(all_posts):
@@ -34,13 +33,15 @@ def fetch_and_queue_posts():
             start_index = max(0, len(all_posts) - 3)
             
     for i in range(start_index, len(all_posts)):
-        new_posts.append(all_posts[i])
+        if not db.is_post_seen(all_posts[i]["id"]):
+            new_posts.append(all_posts[i])
         
     highest_id = last_id
     for post in new_posts:
         highest_id = post["id"] # xronologik
         if post["text"]:
             db.add_queued_post(post)
+            db.set_last_id(highest_id) # Set seen as soon as queued
             print(f"Yangi post navbatga tushdi: {post['id']}")
             
     if new_posts:
@@ -93,7 +94,7 @@ def process_queue_and_post(bot: telebot.TeleBot):
         return
 
     # Post oxiriga kanal shiori va ssilkasini biriktirish
-    slogan = f"\n\n🔥 Qiziq bo'ldimi? Eng sara yangiliklar va layfxaklar faqat siz uchun!\n👉 Obuna bo'ling: {TARGET_CHANNEL_ID}"
+    slogan = f"\n\n🔥 Qiziq bo'ldimi? Eng sara yangiliklar va layfxaklar faqat siz uchun!\n👉 Obuna bo'ling: {CHANNEL_LINK}"
     translated_text += slogan
 
     try:
@@ -137,7 +138,7 @@ def setup_scheduler(bot: telebot.TeleBot):
     scheduler.add_job(
         process_queue_and_post,
         trigger="interval",
-        minutes=3,
+        minutes=15,
         kwargs={"bot": bot}
     )
     

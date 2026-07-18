@@ -11,13 +11,14 @@ def init_db():
             default_data = {
                 "donor_url": "https://lifehacker.com/rss",  # dunyodagi eng mashhur foydali maslahatlar sayti
                 "last_scraped_id": "",
+                "seen_ids": [],
                 "queued_posts": []
             }
             _save_unlocked(default_data)
 
 def _load_unlocked():
     if not os.path.exists(DB_FILE):
-        return {"donor_url": "https://lifehacker.com/rss", "last_scraped_id": "", "queued_posts": []}
+        return {"donor_url": "https://lifehacker.com/rss", "last_scraped_id": "", "seen_ids": [], "queued_posts": []}
     with open(DB_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -45,7 +46,19 @@ def set_last_id(msg_id):
     with _db_lock:
         data = _load_unlocked()
         data["last_scraped_id"] = msg_id
+        if "seen_ids" not in data:
+            data["seen_ids"] = []
+        if msg_id and msg_id not in data["seen_ids"]:
+            data["seen_ids"].append(msg_id)
+            # 50 tadan oshib ketmasligi uchun
+            if len(data["seen_ids"]) > 50:
+                data["seen_ids"] = data["seen_ids"][-50:]
         _save_unlocked(data)
+
+def is_post_seen(post_id):
+    with _db_lock:
+        data = _load_unlocked()
+        return post_id in data.get("seen_ids", [])
 
 def add_queued_post(post_data):
     with _db_lock:
