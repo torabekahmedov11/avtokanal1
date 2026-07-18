@@ -20,16 +20,33 @@ def get_working_model():
         
         print(f"API kalitda mavjud modellar: {available}")
         
-        preferred = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.0-pro', 'gemini-pro']
+        preferred = [
+            'gemini-3.1-flash', 'gemini-3.1-pro', 
+            'gemini-3-flash', 'gemini-3-pro',
+            'gemini-2.5-flash', 'gemini-2.5-pro',
+            'gemini-2.0-flash', 'gemini-2.0-pro',
+            'gemini-1.5-flash', 'gemini-1.5-pro',
+            'gemini-1.0-pro', 'gemini-pro', 'gemini-pro-latest', 'gemini-flash-lite-latest'
+        ]
+        
         for pref in preferred:
             if pref in available:
                 _working_model_name = pref
                 print(f"Tanlangan model: {pref}")
                 return pref
                 
+        # Agar ulardan hech biri bo'lmasa, eng standart 'flash' yoki 'pro' modelini qidiramiz
+        for m in available:
+            if 'flash' in m or 'pro' in m:
+                # Maxsus tts, image, deep-research modellaridan qochamiz
+                if not any(x in m for x in ['image', 'tts', 'deep-research', 'preview', 'customtools']):
+                    _working_model_name = m
+                    print(f"Zaxira sifatida tanlangan text model: {m}")
+                    return m
+                    
         if available:
-            _working_model_name = available[-1] # Usually the most advanced is at the bottom
-            return available[-1]
+            _working_model_name = available[0]
+            return available[0]
             
     except Exception as e:
         print(f"Modellarni yuklashda xato (Fallback qo'llaniladi): {e}")
