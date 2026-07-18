@@ -100,6 +100,9 @@ def process_new_donor(message):
                          f"Endi yangi ma'lumotlarni yig'ib olish uchun /force_fetch ni bosing.")
 
 if __name__ == "__main__":
+    from keep_alive import keep_alive
+    keep_alive()
+    
     setup_scheduler(bot)
     scheduler.start()
     print("Taymer (Scheduler) ishga tushdi!")
