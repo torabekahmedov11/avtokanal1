@@ -4,11 +4,9 @@ from config import GEMINI_API_KEY
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-# Use gemini-1.5-flash since it's the fastest and available in the free tier
-# For backward compatibility, maybe gemini-1.0-pro or gemini-pro is safer if 1.5 is constrained, 
-# but 1.5-flash is currently default on AI studio. Let's use gemini-1.5-flash.
+# 1.5 modellari ba'zi kalitlarda 404 xatosi bergani uchun, stabil bo'lgan 1.0-pro ga o'tkazildi
 try:
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-1.0-pro')
 except Exception:
     pass # will be handled on usage
 
