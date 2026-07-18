@@ -62,6 +62,22 @@ def scrape_telegram_channel(rss_url, last_id):
         if clean_summary and clean_summary != entry.get('title', ''):
             text += clean_summary
             
+        # ---------------- REKLAMA FILTRI ----------------
+        title_lower = entry.get('title', '').lower()
+        link_lower = post_id.lower()
+        
+        ad_keywords = ['deal', 'sale', 'sponsor', 'promoted', 'amazon', 'aliexpress', 'discount', '% off', 'coupon', 'woot']
+        is_ad = False
+        for kw in ad_keywords:
+            if kw in title_lower or kw in link_lower:
+                is_ad = True
+                break
+                
+        if is_ad:
+            print(f"Reklama po'sti o'tkazib yuborildi: {title_lower}")
+            continue
+        # ------------------------------------------------
+            
         new_posts.append({
             "id": post_id,
             "text": text,
