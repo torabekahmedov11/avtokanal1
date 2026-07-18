@@ -92,6 +92,10 @@ def process_queue_and_post(bot: telebot.TeleBot):
         print(f"Post SENZURAdan o'tmadi! Bloklandi.")
         return
 
+    # Post oxiriga kanal shiori va ssilkasini biriktirish
+    slogan = f"\n\n🔥 Qiziq bo'ldimi? Eng sara yangiliklar va layfxaklar faqat siz uchun!\n👉 Obuna bo'ling: {TARGET_CHANNEL_ID}"
+    translated_text += slogan
+
     try:
         video_url = post.get('video')
         image_url = post.get('image')
