@@ -4,11 +4,38 @@ from config import GEMINI_API_KEY
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-# 1.5 modellari ba'zi kalitlarda 404 xatosi bergani uchun, stabil bo'lgan 1.0-pro ga o'tkazildi
-try:
-    model = genai.GenerativeModel('gemini-1.0-pro')
-except Exception:
-    pass # will be handled on usage
+_working_model_name = None
+
+def get_working_model():
+    global _working_model_name
+    if _working_model_name:
+        return _working_model_name
+        
+    try:
+        available = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                name = m.name.replace('models/', '')
+                available.append(name)
+        
+        print(f"API kalitda mavjud modellar: {available}")
+        
+        preferred = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.0-pro', 'gemini-pro']
+        for pref in preferred:
+            if pref in available:
+                _working_model_name = pref
+                print(f"Tanlangan model: {pref}")
+                return pref
+                
+        if available:
+            _working_model_name = available[-1] # Usually the most advanced is at the bottom
+            return available[-1]
+            
+    except Exception as e:
+        print(f"Modellarni yuklashda xato (Fallback qo'llaniladi): {e}")
+        
+    _working_model_name = 'gemini-1.5-flash'
+    return _working_model_name
 
 def translate_and_spice_up(text):
     if not GEMINI_API_KEY:
@@ -31,6 +58,7 @@ Asl matn:
 {text}
 """
     try:
+        model = genai.GenerativeModel(get_working_model())
         response = model.generate_content(prompt)
         try:
             translated = response.text.strip()
