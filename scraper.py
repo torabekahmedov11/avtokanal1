@@ -32,23 +32,33 @@ def scrape_telegram_channel(rss_url, last_id):
         # We will retrieve title + summary text
         text = entry.get('title', '') + "\n\n"
         
-        # Summary ichida HTML bo'lishi mumkin
-        summary_html = entry.get('summary', '') or entry.get('description', '')
-        
-        soup = BeautifulSoup(summary_html, 'html.parser')
+        # Summary ichida HTML bo'lishi mumkin, ba'zan esa 'content' ichida bo'ladi
+        content_html = entry.get('summary', '') or entry.get('description', '')
+        if 'content' in entry and len(entry.content) > 0:
+            content_html = entry.content[0].value
+            
+        soup = BeautifulSoup(content_html, 'html.parser')
         
         # Rasmni topish (agar bo'lsa)
         image_url = None
         img_tag = soup.find('img')
         if img_tag and img_tag.get('src'):
             image_url = img_tag.get('src')
-        else:
-            # Ba'zi RSS larda rasm rasm(media) atributida bo'lishi mumkin
+            
+        if not image_url:
+            # Ba'zi RSS larda rasm (media) atributida, enclosure'da bo'lishi mumkin
             if 'media_content' in entry and len(entry.media_content) > 0:
                 image_url = entry.media_content[0].get('url')
+            elif 'media_thumbnail' in entry and len(entry.media_thumbnail) > 0:
+                image_url = entry.media_thumbnail[0].get('url')
+            elif getattr(entry, 'enclosures', None):
+                for enc in entry.enclosures:
+                    if 'image' in getattr(enc, 'type', '') or 'image' in enc.get('type', ''):
+                        image_url = enc.get('href')
+                        break
         
-        # Matnni tozalash
-        clean_summary = soup.get_text().strip()
+        # Matnni tozalash (yangi qatorlarni saqlab qolish yaxshi)
+        clean_summary = soup.get_text('\n', strip=True)
         if clean_summary and clean_summary != entry.get('title', ''):
             text += clean_summary
             
