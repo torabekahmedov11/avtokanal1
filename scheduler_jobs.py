@@ -122,12 +122,10 @@ def process_queue_and_post(bot: telebot.TeleBot):
 
     main_post, comment_post = parse_ai_response(translated_text)
 
-    # Post oxiriga kanal shiori va ssilkasini biriktirish (Faqat asosiysiga yoki izohgami? Yaxshisi izoh oxirida)
+    # Post oxiriga kanal shiori va ssilkasini biriktirish
     slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
-    if comment_post:
-        comment_post += slogan
-    else:
-        main_post += slogan
+    # Foydalanuvchi talabi bilan asosiy postni o'zida shior va manzil yoziladi
+    main_post += slogan
 
     try:
         video_url = post.get('video')

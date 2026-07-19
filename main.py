@@ -1,7 +1,7 @@
 import telebot
 import db
 import ai_moderator
-from config import BOT_TOKEN, ADMIN_ID
+from config import BOT_TOKEN, ADMIN_ID, TARGET_CHANNEL_ID
 from scheduler_jobs import setup_scheduler, scheduler, fetch_and_queue_posts, process_queue_and_post
 
 db.init_db()
@@ -100,14 +100,17 @@ def process_new_donor(message):
     bot.send_message(message.chat.id, f"✅ Muvaffaqiyatli! Yangi RSS Manba ulandi: {new_url} \n"
                          f"Endi yangi ma'lumotlarni yig'ib olish uchun /force_fetch ni bosing.")
 
-@bot.message_handler(content_types=['text', 'photo', 'video', 'document'], func=lambda message: getattr(message, 'is_automatic_forward', False))
+@bot.message_handler(content_types=['text', 'photo', 'video', 'document'], func=lambda m: getattr(m, 'is_automatic_forward', False) or (getattr(m, 'forward_from_chat', None) and str(m.forward_from_chat.id) == str(TARGET_CHANNEL_ID)) or getattr(m.from_user, 'id', None) == 777000)
 def handle_auto_forward(message):
     """
     Kanalga xabar tashlangach, u guruhga (COMMENT_CHANNEL_ID_group) forward qilinadi.
     Bot uni ushlab olib, o'zining xotirasida o'sha xabarga tegishli [KOMMENT] bormi deb qaraydi va yozib yuboradi.
     """
     try:
-        channel_msg_id = message.forward_from_message_id
+        channel_msg_id = getattr(message, 'forward_from_message_id', None)
+        if not channel_msg_id:
+            return
+            
         pending_comment = db.get_pending_comment(channel_msg_id)
         if pending_comment:
             from scheduler_jobs import chunk_text
