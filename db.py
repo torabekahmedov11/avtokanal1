@@ -12,13 +12,14 @@ def init_db():
                 "donor_url": "https://lifehacker.com/rss",  # dunyodagi eng mashhur foydali maslahatlar sayti
                 "last_scraped_id": "",
                 "seen_ids": [],
-                "queued_posts": []
+                "queued_posts": [],
+                "pending_comments": {}
             }
             _save_unlocked(default_data)
 
 def _load_unlocked():
     if not os.path.exists(DB_FILE):
-        return {"donor_url": "https://lifehacker.com/rss", "last_scraped_id": "", "seen_ids": [], "queued_posts": []}
+        return {"donor_url": "https://lifehacker.com/rss", "last_scraped_id": "", "seen_ids": [], "queued_posts": [], "pending_comments": {}}
     with open(DB_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -87,3 +88,23 @@ def get_next_post():
 def get_queued_count():
     with _db_lock:
         return len(_load_unlocked().get("queued_posts", []))
+
+def add_pending_comment(channel_msg_id, text):
+    with _db_lock:
+        data = _load_unlocked()
+        if "pending_comments" not in data:
+            data["pending_comments"] = {}
+        data["pending_comments"][str(channel_msg_id)] = text
+        _save_unlocked(data)
+
+def get_pending_comment(channel_msg_id):
+    with _db_lock:
+        data = _load_unlocked()
+        return data.get("pending_comments", {}).get(str(channel_msg_id))
+
+def delete_pending_comment(channel_msg_id):
+    with _db_lock:
+        data = _load_unlocked()
+        if "pending_comments" in data and str(channel_msg_id) in data["pending_comments"]:
+            del data["pending_comments"][str(channel_msg_id)]
+            _save_unlocked(data)

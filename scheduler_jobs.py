@@ -73,23 +73,21 @@ def chunk_text(text, max_len=4096):
         text = text[split_at:].strip()
     return chunks
 
-def split_for_caption(text, max_len=980):
-    """Matnni rasm izohi uchun (max 1024) va ortgan qismini ajratadi."""
-    if len(text) <= max_len:
-        return text, ""
+def parse_ai_response(text):
+    """Matnni [XABAR] va [KOMMENT] qismlariga ajratadi."""
+    xabar = text
+    komment = ""
     
-    split_at = text.rfind('\n\n', 0, max_len)
-    if split_at == -1:
-        split_at = text.rfind('\n', 0, max_len)
-    if split_at == -1:
-        split_at = text.rfind(' ', 0, max_len)
-    if split_at == -1:
-        split_at = max_len
+    if "[XABAR]" in text and "[KOMMENT]" in text:
+        parts = text.split("[KOMMENT]")
+        xabar = parts[0].replace("[XABAR]", "").strip()
+        komment = parts[1].strip()
+    elif "[KOMMENT]" in text:
+        parts = text.split("[KOMMENT]")
+        xabar = parts[0].strip()
+        komment = parts[1].strip()
         
-    caption = text[:split_at].strip()
-    caption += "\n\n<i>(Matnning davomi izohlarda 👇)</i>"
-    remainder = text[split_at:].strip()
-    return caption, remainder
+    return xabar, komment
 
 def process_queue_and_post(bot: telebot.TeleBot):
     """
@@ -122,28 +120,30 @@ def process_queue_and_post(bot: telebot.TeleBot):
     # Agar AI baribir yulduzchalardan foydalangan bo'lsa, xato bermasligi uchun qolgan * ni olib tashlash ham mumkin:
     translated_text = translated_text.replace('**', '').replace('*', '')
 
-    # Post oxiriga kanal shiori va ssilkasini biriktirish
+    main_post, comment_post = parse_ai_response(translated_text)
+
+    # Post oxiriga kanal shiori va ssilkasini biriktirish (Faqat asosiysiga yoki izohgami? Yaxshisi izoh oxirida)
     slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
-    translated_text += slogan
+    if comment_post:
+        comment_post += slogan
+    else:
+        main_post += slogan
 
     try:
         video_url = post.get('video')
         image_url = post.get('image')
         
-        caption, remainder = split_for_caption(translated_text, 980)
-        
         sent_msg = None
         if video_url:
-            sent_msg = bot.send_video(TARGET_CHANNEL_ID, video_url, caption=caption, parse_mode="HTML")
+            sent_msg = bot.send_video(TARGET_CHANNEL_ID, video_url, caption=main_post, parse_mode="HTML")
         elif image_url:
-            sent_msg = bot.send_photo(TARGET_CHANNEL_ID, image_url, caption=caption, parse_mode="HTML")
+            sent_msg = bot.send_photo(TARGET_CHANNEL_ID, image_url, caption=main_post, parse_mode="HTML")
         else:
-            sent_msg = bot.send_message(TARGET_CHANNEL_ID, caption, parse_mode="HTML")
+            sent_msg = bot.send_message(TARGET_CHANNEL_ID, main_post, parse_mode="HTML")
             
-        if remainder:
-            remainder_chunks = chunk_text(remainder, 4000)
-            for chunk in remainder_chunks:
-                bot.send_message(TARGET_CHANNEL_ID, chunk, reply_to_message_id=sent_msg.message_id, parse_mode="HTML")
+        if comment_post and sent_msg:
+            # Kommentni xotiraga yozamiz. main.py uni ushlab olib guruhdagi forward ostiga javob yozadi!
+            db.add_pending_comment(sent_msg.message_id, comment_post)
                 
         print(f"✅ Kanalga POST yuborildi! (Qoldi: {db.get_queued_count()})")
     except Exception as e:

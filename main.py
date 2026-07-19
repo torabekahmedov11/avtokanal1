@@ -100,6 +100,24 @@ def process_new_donor(message):
     bot.send_message(message.chat.id, f"✅ Muvaffaqiyatli! Yangi RSS Manba ulandi: {new_url} \n"
                          f"Endi yangi ma'lumotlarni yig'ib olish uchun /force_fetch ni bosing.")
 
+@bot.message_handler(content_types=['text', 'photo', 'video', 'document'], func=lambda message: getattr(message, 'is_automatic_forward', False))
+def handle_auto_forward(message):
+    """
+    Kanalga xabar tashlangach, u guruhga (COMMENT_CHANNEL_ID_group) forward qilinadi.
+    Bot uni ushlab olib, o'zining xotirasida o'sha xabarga tegishli [KOMMENT] bormi deb qaraydi va yozib yuboradi.
+    """
+    try:
+        channel_msg_id = message.forward_from_message_id
+        pending_comment = db.get_pending_comment(channel_msg_id)
+        if pending_comment:
+            from scheduler_jobs import chunk_text
+            chunks = chunk_text(pending_comment, 4000)
+            for chunk in chunks:
+                bot.send_message(message.chat.id, chunk, reply_to_message_id=message.message_id, parse_mode="HTML")
+            db.delete_pending_comment(channel_msg_id)
+    except Exception as e:
+        print("Avto-forward izoh qo'shishda xato:", e)
+
 @bot.message_handler(func=lambda message: message.chat.type in ['group', 'supergroup'], content_types=['text'])
 def handle_group_messages(message):
     text = message.text.lower()
