@@ -108,6 +108,14 @@ def handle_backup_restore(message):
         else:
             bot.reply_to(message, "❌ Xotirani tiklash imkonsiz. String(matn) formatida xatolik.")
 
+@bot.message_handler(content_types=['text', 'photo', 'video', 'document', 'forward'])
+def handle_unknown_messages(message):
+    if str(message.from_user.id) == str(ADMIN_ID):
+        bot.reply_to(message, "🤖 Uzr, men ushbu xabarni tushunmadim.\n\n"
+                              "P.S. Tizim xotirasini tiklash mo'ljalida kanalning oxirgi postini yuborgan bo'lsangiz, buni qo'llab-quvvatlamayman. "
+                              "Siz menga **faqat o'zim sizga tunda jo'natgan 💾 #BACKUP_DATA sirlangan xabarni** qayta (forward) jo'natishingiz shart!\n\n"
+                              "Agar menda hali xotira shakllanmagan bo'lsa yoki parolingizni yo'qotgan bo'lsangiz nol holatdan ishlashda davom etish uchun shunchaki /force_fetch ni bosing.")
+
 def check_memory_on_startup():
     last_id = db.get_last_id()
     if not last_id:
