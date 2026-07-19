@@ -66,7 +66,8 @@ Qat'iy Qoidalar (Sen'zura va O'zbekiston filtri):
 
 Tarjima va Formatlash Qoidalari (O'ta muhim!):
 3. Ikki qismga ajratish: Matnni majburiy ravishda aniq ikki qismga bo'lib bering. Boshlanishi `[XABAR]` degan yozuv bilan, pastki qismi (batafsil qo'llanma yoki maqola davomi) esa `[BATAFSIL]` degan yozuv bilan ajratilib chiqishi shart! Asl maqoladagi eng zo'r sirlar [BATAFSIL] ga yashirilsin.
-4. [XABAR] qismi (Kanal yuzi uchun): O'quvchi e'tiborini tortuvchi SARLAVHA bilan boshlang. HTML qalinligida (Masalan: <b>GOOGLE DRIVEDA XOTIRA TUGAYAPTIMI?</b>) bo'lsin. Matnda rasmiy ("ixlosmandlar", "ommalashgan" h.k) va zerikarli so'zlar umuman ishlatilmang. Qadrdon do'stlarga kofe ichib gapirib berayotgandek xalqchil, samimiy va erkin ("O'zimam bilmagandim", "Shokdaman") kabi o'zingizni shaxsiy reaksiyangiz bilan yozing. Matn o'ta qisqa va qiziqtiruvchi sirlarga boy bo'lsin lekin sirlar ochilmasin (max 600 harf). Tugatishda "<i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
+4. [XABAR] qismi (Kanal yuzi uchun): O'quvchi e'tiborini tortuvchi SARLAVHA bilan boshlang. HTML qalinligida bo'lsin. Matnda rasmiy va zerikarli so'zlar ishlatilmang. Matn oxirida mutlaqo oldingiday **o'zingizning shaxsiy fikringiz** ni (masalan: "Men bu funksiyani ko'rib hayratda qoldim") bering.
+LEKIN QAT'IY OGOHLANTIRISH: Shaxsiy fikr bildirayotganda aslo "Keyingi safar batafsil obzor qilaman", "Kuzatib boring", "Yaqinda yana gaplashamiz" kabi HECH QANDAY kelajakka oid quruq va'dalar bermang! Bor-yo'g'i reaksiyangizni yozing. Matn o'ta qisqa bo'lsin (max 600 harf). Tugatishda "<i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
 5. O'qish vaqti: Sarlavhaning darhol ostiga kichkinagina kursiv qilib "<i>⏱ O'qish vaqti: 1 daqiqa</i>" deb yozing.
 6. [BATAFSIL] qismi (Telegraph uchun): Aynan shu yerda har qanday qadamma-qadam qo'llanmalar, muammoni yechish tafsilotlari, uzoq ro'yxatlar va maqola davomi to'liq tushuntirilishi kerak. Telegraphga tushishini hisobga olib bemalol yozing (limit yo'q). Muhokamaga chorlov va hashtaglar ham faqat shu bo'limning eng oxirida bo'lsin.
 7. Formatlash: Qalin yoxud kursiv qilish uchun ASLO yulduzcha (*) yoki Markdown ishlata ko'rmang, o'rniga HTML teglardan (<b>, <i>) foydalaning.
@@ -108,7 +109,7 @@ def generate_morning_lifehack():
     Format:
     1. Albatta qiziqarli usulda Salomlashish bilan boshlang (Masalan: "Xayrli tong, qadrdonlar!", "Yangi kun muborak, texnomanlar!" h.k).
     2. Yana o'sha qoidalarga muvofiq, [XABAR] va [BATAFSIL] degan ikki qismga bo'ling.
-    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida ertalab ishga ketayotgan odamning kayfiyatini ko'taradigan do'stona gap jumlasi va sirlarga boy bitta fakt yozing. Matn 1000 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. Tugatishda "<i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
+    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida ertalab ishga ketayotgan odamning kayfiyatini ko'taradigan do'stona gap jumlasi, sirlarga boy bitta fakt va o'zingizni Shaxsiy Fikringizni qisqa yozing. LEKIN "Keyingi safar", "Tez orada obzor qilaman" degan hech qanday va'da bermang! Matn 1000 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. Tugatishda "<i>(Barchasini bilish yoxud o'rnatish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
     4. Sarlavhaning darhol ostiga kichkinagina kursiv qilib "<i>⏱ O'qish vaqti: 1 daqiqa</i>" deb yozing.
     5. [BATAFSIL] qismiga o'sha layfxakning qadamma qadam qanday yasalishini tushuntiring.
     6. Format uchun faqat <b> va <i> html ishlating. Hech qanday yulduzchalar yo'q.
