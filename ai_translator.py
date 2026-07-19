@@ -93,3 +93,37 @@ Asl matn:
     except Exception as e:
         print(f"Gemini API Error: {e}")
         return None
+
+def generate_morning_lifehack():
+    """Tongi xayrli tong po'sti uchun manbasiz generatsiya (AI o'zi o'ylaydi)."""
+    if not GEMINI_API_KEY:
+        return None
+    
+    prompt = """
+    Siz Telegramdagi "Avtokanal" (yoki foydali layfxaklar) kanalining samimiy va do'stona adminisiz. Obunachilaringizga yaxshi kayfiyat ulashish obro'yingiz uchun juda muhim.
+    
+    Sizning vazifangiz:
+    Roppa-rosa ertalab soat 07:00 uchun bitta bomba, sinalgan haqiqiy "layfxak" (hayotni yengillashtiruvchi maslahat yoxud maxfiy funksiya) o'ylab topish. Bu tarjima emas, o'zingiz bilgan mukammal texnologik fakt bo'lsin.
+    
+    Format:
+    1. Albatta qiziqarli usulda Salomlashish bilan boshlang (Masalan: "Xayrli tong, qadrdonlar!", "Yangi kun muborak, texnomanlar!" h.k).
+    2. Yana o'sha qoidalarga muvofiq, [XABAR] va [BATAFSIL] degan ikki qismga bo'ling.
+    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida ertalab ishga ketayotgan odamning kayfiyatini ko'taradigan do'stona gap jumlasi va sirlarga boy bitta fakt yozing. Matn 1000 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. Tugatishda "<i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
+    4. Sarlavhaning darhol ostiga kichkinagina kursiv qilib "<i>⏱ O'qish vaqti: 1 daqiqa</i>" deb yozing.
+    5. [BATAFSIL] qismiga o'sha layfxakning qadamma qadam qanday yasalishini tushuntiring.
+    6. Format uchun faqat <b> va <i> html ishlating. Hech qanday yulduzchalar yo'q.
+    
+    Shablon:
+    [XABAR]
+    ...
+    [BATAFSIL]
+    ...
+    """
+    try:
+        model = genai.GenerativeModel(get_working_model())
+        response = model.generate_content(prompt)
+        text = response.text.strip().replace('**', '').replace('*', '')
+        return text
+    except Exception as e:
+        print(f"Ertalabki layfxak xatosi: {e}")
+        return None

@@ -1,5 +1,6 @@
 import telebot
 import db
+import threading
 from config import BOT_TOKEN, ADMIN_ID, TARGET_CHANNEL_ID
 from scheduler_jobs import setup_scheduler, scheduler, fetch_and_queue_posts, process_queue_and_post
 
@@ -99,11 +100,28 @@ def process_new_donor(message):
     bot.send_message(message.chat.id, f"✅ Muvaffaqiyatli! Yangi RSS Manba ulandi: {new_url} \n"
                          f"Endi yangi ma'lumotlarni yig'ib olish uchun /force_fetch ni bosing.")
 
+@bot.message_handler(func=lambda message: message.text and "#BACKUP_DATA" in message.text)
+def handle_backup_restore(message):
+    if str(message.from_user.id) == str(ADMIN_ID):
+        if db.restore_backup(message.text):
+            bot.reply_to(message, "✅ Xotira bazasi muvaffaqiyatli TIKLANDI! Men o'z ishimni to'xtagan joyimdan davom etaman.")
+        else:
+            bot.reply_to(message, "❌ Xotirani tiklash imkonsiz. String(matn) formatida xatolik.")
 
+def check_memory_on_startup():
+    last_id = db.get_last_id()
+    if not last_id:
+        try:
+            bot.send_message(ADMIN_ID, "⚠️ **Diqqat! Meni xotiram bo'm-bo'sh (o'chib yongan bo'lishim mumkin).**\n\nIltimos, pastdagi ishlardan biri orqali menga eslatma bering:\n1. Eng oxirgi 💾 #BACKUP_DATA deb jo'natgan yozuvimni menga Forward qilib bering (men o'sha joydan davom etaman).\n2. Yoki yangitdan boshlash uchun /force_fetch buyrug'ini bosing.")
+        except:
+            pass
 
 if __name__ == "__main__":
     from keep_alive import keep_alive
     keep_alive()
+    
+    # Startup check
+    threading.Thread(target=check_memory_on_startup).start()
     
     setup_scheduler(bot)
     scheduler.start()

@@ -56,6 +56,10 @@ def fetch_and_queue_posts(bot=None):
             
     if new_posts:
         db.set_last_id(highest_id)
+        # Baza o'zgargani uchun zaxira jo'natamiz
+        try:
+            if bot: bot.send_message(ADMIN_ID, db.get_backup_data())
+        except: pass
 
 def parse_telegraph_response(text):
     xabar = text
@@ -72,10 +76,41 @@ def parse_telegraph_response(text):
         
     return xabar, batafsil
 
+def send_morning_greeting(bot: telebot.TeleBot):
+    """Ertalab soat 07:00 da uyg'onib salomlashish layfxaki tashlaydi."""
+    print(f"[{datetime.now()}] TONGGI MAXSUS POST YARATILMOQDA...")
+    text = ai_translator.generate_morning_lifehack()
+    if not text:
+        return
+        
+    main_post, batafsil_post = parse_telegraph_response(text)
+    slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
+    main_post += slogan
+    
+    markup = None
+    if batafsil_post:
+        telegraph_url = create_telegraph_page(title="Xayrli tong!", html_content=batafsil_post)
+        if telegraph_url:
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("👉 Batafsil o'qish", url=telegraph_url))
+            
+    try:
+        bot.send_message(TARGET_CHANNEL_ID, main_post, parse_mode="HTML", reply_markup=markup)
+        print("✅ Tonggi salomlashuv post kanalga ketdi!")
+        # Baza yopilishi holatiga qarshi zaxira
+        bot.send_message(ADMIN_ID, db.get_backup_data())
+    except Exception as e:
+        print(f"Tonggi post jo'natish xatosi: {e}")
+
 def process_queue_and_post(bot: telebot.TeleBot):
     """
     Navbatda turgan eng birinchi postni olib, filtrdan o'tkazadi va chiqaradi.
     """
+    now = datetime.now()
+    if not (7 <= now.hour <= 23):
+        # Tungi vaqt, uxlaymiz
+        return
+        
     if not TARGET_CHANNEL_ID:
         return
 
@@ -155,6 +190,15 @@ def setup_scheduler(bot: telebot.TeleBot):
         process_queue_and_post,
         trigger="interval",
         minutes=15,
+        kwargs={"bot": bot}
+    )
+    
+    # Ertalabki soat 7:00 da maxsus cron job ishlashi:
+    scheduler.add_job(
+        send_morning_greeting,
+        trigger="cron",
+        hour=7,
+        minute=0,
         kwargs={"bot": bot}
     )
     

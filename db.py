@@ -87,3 +87,32 @@ def get_next_post():
 def get_queued_count():
     with _db_lock:
         return len(_load_unlocked().get("queued_posts", []))
+
+def get_backup_data():
+    """Bot zaxirasini bitta matn string ko'rinishida generatsiya qiladi."""
+    with _db_lock:
+        data = _load_unlocked()
+        import base64
+        import copy
+        # Biz faqat last_scraped_id ni zaxiralashimiz muhim, queued posts yangitdan yuklanadi
+        # Lekin tunda ishlab navbatga yig'ilganlarni ham saqlab qolish yaxshi!
+        safe_data = copy.deepcopy(data)
+        # Barchasini json qilib Base64 ga aylantiramiz, matn xato ketmasligi uchun
+        encoded_bytes = base64.b64encode(json.dumps(safe_data).encode("utf-8"))
+        return f"💾 #BACKUP_DATA\n{encoded_bytes.decode('utf-8')}"
+
+def restore_backup(backup_string):
+    """Base64 stringdan datani olib db.json ga yozadi."""
+    try:
+        lines = backup_string.split('\n')
+        if len(lines) >= 2:
+            base64_str = lines[1].strip()
+            import base64
+            decoded_bytes = base64.b64decode(base64_str)
+            data = json.loads(decoded_bytes.decode("utf-8"))
+            with _db_lock:
+                _save_unlocked(data)
+            return True
+    except Exception as e:
+        print(f"Xotirani tiklash xatosi: {e}")
+    return False
