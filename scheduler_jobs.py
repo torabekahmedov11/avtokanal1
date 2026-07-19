@@ -3,20 +3,28 @@ import telebot
 import db
 import scraper
 import ai_translator
-from config import TARGET_CHANNEL_ID, CHANNEL_LINK
-import datetime
+from config import TARGET_CHANNEL_ID, CHANNEL_LINK, ADMIN_ID
+from datetime import datetime
 
 scheduler = BackgroundScheduler(timezone='Asia/Tashkent')
 
-def fetch_and_queue_posts():
+def fetch_and_queue_posts(bot=None):
     """
     Saytdan yangi postlarni topadi va navbatga qo'shadi.
     """
     donor = db.get_donor_url()
     last_id = db.get_last_id()
     
-    print(f"[{datetime.datetime.now()}] Skraping kuting... ({donor})")
-    all_posts = scraper.scrape_telegram_channel(donor, last_id)
+    print(f"[{datetime.now()}] Skraping kuting... ({donor})")
+    try:
+        all_posts = scraper.scrape_telegram_channel(donor, last_id)
+    except Exception as e:
+        print(f"Skraping xatosi: {e}")
+        if bot:
+            try:
+                bot.send_message(ADMIN_ID, f"⚠️ **Skraping (Xabar o'g'irlash) bo'limida XATOLIK:**\n\n`{str(e)}`", parse_mode="Markdown")
+            except: pass
+        return
     
     if not all_posts:
         return
@@ -65,6 +73,24 @@ def chunk_text(text, max_len=4096):
         text = text[split_at:].strip()
     return chunks
 
+def split_for_caption(text, max_len=980):
+    """Matnni rasm izohi uchun (max 1024) va ortgan qismini ajratadi."""
+    if len(text) <= max_len:
+        return text, ""
+    
+    split_at = text.rfind('\n\n', 0, max_len)
+    if split_at == -1:
+        split_at = text.rfind('\n', 0, max_len)
+    if split_at == -1:
+        split_at = text.rfind(' ', 0, max_len)
+    if split_at == -1:
+        split_at = max_len
+        
+    caption = text[:split_at].strip()
+    caption += "\n\n*(Matnning davomi izohlarda 👇)*"
+    remainder = text[split_at:].strip()
+    return caption, remainder
+
 def process_queue_and_post(bot: telebot.TeleBot):
     """
     Navbatda turgan eng birinchi postni olib, filtrdan o'tkazadi va chiqaradi.
@@ -93,35 +119,40 @@ def process_queue_and_post(bot: telebot.TeleBot):
         print(f"Post SENZURAdan o'tmadi! Bloklandi.")
         return
 
+    # Agar AI baribir yulduzchalardan foydalangan bo'lsa, xato bermasligi uchun qolgan * ni olib tashlash ham mumkin:
+    translated_text = translated_text.replace('**', '').replace('*', '')
+
     # Post oxiriga kanal shiori va ssilkasini biriktirish
-    slogan = f"\n\n🔥 Qiziq bo'ldimi? Eng sara yangiliklar va layfxaklar faqat siz uchun!\n👉 Obuna bo'ling: {CHANNEL_LINK}"
+    slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
     translated_text += slogan
 
     try:
         video_url = post.get('video')
         image_url = post.get('image')
         
-        chunks = chunk_text(translated_text, 4000)
+        caption, remainder = split_for_caption(translated_text, 980)
         
-        if len(translated_text) > 1000:
-            if video_url:
-                bot.send_video(TARGET_CHANNEL_ID, video_url)
-            elif image_url:
-                bot.send_photo(TARGET_CHANNEL_ID, image_url)
-            
-            for chunk in chunks:
-                bot.send_message(TARGET_CHANNEL_ID, chunk)
+        sent_msg = None
+        if video_url:
+            sent_msg = bot.send_video(TARGET_CHANNEL_ID, video_url, caption=caption, parse_mode="HTML")
+        elif image_url:
+            sent_msg = bot.send_photo(TARGET_CHANNEL_ID, image_url, caption=caption, parse_mode="HTML")
         else:
-            if video_url:
-                bot.send_video(TARGET_CHANNEL_ID, video_url, caption=translated_text)
-            elif image_url:
-                bot.send_photo(TARGET_CHANNEL_ID, image_url, caption=translated_text)
-            else:
-                bot.send_message(TARGET_CHANNEL_ID, translated_text)
+            sent_msg = bot.send_message(TARGET_CHANNEL_ID, caption, parse_mode="HTML")
+            
+        if remainder:
+            remainder_chunks = chunk_text(remainder, 4000)
+            for chunk in remainder_chunks:
+                bot.send_message(TARGET_CHANNEL_ID, chunk, reply_to_message_id=sent_msg.message_id, parse_mode="HTML")
                 
         print(f"✅ Kanalga POST yuborildi! (Qoldi: {db.get_queued_count()})")
     except Exception as e:
         print(f"Jo'natishda xato: {e}")
+        try:
+            bot.send_message(ADMIN_ID, f"⚠️ **DIQQAT! Post kanalga jo'natishda xatolik yuz berdi:**\n\n`{str(e)}`", parse_mode="Markdown")
+        except:
+            pass
+            
         post['retries'] = post.get('retries', 0) + 1
         if post['retries'] <= 3:
             db.requeue_post(post)
@@ -132,7 +163,8 @@ def setup_scheduler(bot: telebot.TeleBot):
     scheduler.add_job(
         fetch_and_queue_posts,
         trigger="interval",
-        minutes=10
+        minutes=10,
+        kwargs={"bot": bot}
     )
     
     scheduler.add_job(
@@ -142,4 +174,4 @@ def setup_scheduler(bot: telebot.TeleBot):
         kwargs={"bot": bot}
     )
     
-    fetch_and_queue_posts()
+    fetch_and_queue_posts(bot)

@@ -1,5 +1,6 @@
 import telebot
 import db
+import ai_moderator
 from config import BOT_TOKEN, ADMIN_ID
 from scheduler_jobs import setup_scheduler, scheduler, fetch_and_queue_posts, process_queue_and_post
 
@@ -98,6 +99,41 @@ def process_new_donor(message):
     db.set_donor_url(new_url)
     bot.send_message(message.chat.id, f"✅ Muvaffaqiyatli! Yangi RSS Manba ulandi: {new_url} \n"
                          f"Endi yangi ma'lumotlarni yig'ib olish uchun /force_fetch ni bosing.")
+
+@bot.message_handler(func=lambda message: message.chat.type in ['group', 'supergroup'], content_types=['text'])
+def handle_group_messages(message):
+    text = message.text.lower()
+    
+    # Agar foydalanuvchi to'ppa-to'g'ri bot_username so'rasa yoki botga reply qilsa
+    try:
+        bot_info = bot.get_me()
+        is_reply_to_bot = message.reply_to_message and message.reply_to_message.from_user.id == bot_info.id
+        mentioned_admin = ("admin" in text) or ("adminka" in text) or (f"@{bot_info.username}".lower() in text)
+        
+        if is_reply_to_bot or mentioned_admin:
+            bot.send_chat_action(message.chat.id, 'typing')
+            
+            # Gemini-Ali funksiyasi ishga tushadi
+            reply_text = ai_moderator.generate_admin_reply(message.text, message.from_user.first_name)
+            
+            if not reply_text:
+                return
+                
+            if reply_text == "[FORWARD]":
+                # Adminga jo'natish (ADMIN_ID db da o'rnatilmagan env da bor)
+                try:
+                    bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
+                    username = f"@{message.from_user.username}" if message.from_user.username else message.from_user.first_name
+                    bot.send_message(ADMIN_ID, f"🚨 **Izohlardan murojaat / Reklama so'rovi:**\nKimdan: {username}")
+                except Exception as ex:
+                    print(f"Rahbarga xabarni forward qilishda xato: {ex}")
+                
+                bot.reply_to(message, "Bu murojaatingiz muhim, shuning uchun shaxsan kanal rahbariga (bosh adminga) yetkazdim. Sizga tez orada aloqaga chiqishadi! 🤝")
+            else:
+                bot.reply_to(message, reply_text)
+                
+    except Exception as e:
+        print(f"Guruh xabarlarida xato: {e}")
 
 if __name__ == "__main__":
     from keep_alive import keep_alive
