@@ -56,10 +56,6 @@ def fetch_and_queue_posts(bot=None):
             
     if new_posts:
         db.set_last_id(highest_id)
-        # Baza o'zgargani uchun zaxira jo'natamiz
-        try:
-            if bot: bot.send_message(ADMIN_ID, db.get_backup_data())
-        except: pass
 
 def parse_telegraph_response(text):
     xabar = text
@@ -97,8 +93,6 @@ def send_morning_greeting(bot: telebot.TeleBot):
     try:
         bot.send_message(TARGET_CHANNEL_ID, main_post, parse_mode="HTML", reply_markup=markup)
         print("✅ Tonggi salomlashuv post kanalga ketdi!")
-        # Baza yopilishi holatiga qarshi zaxira
-        bot.send_message(ADMIN_ID, db.get_backup_data())
     except Exception as e:
         print(f"Tonggi post jo'natish xatosi: {e}")
 
@@ -106,11 +100,6 @@ def process_queue_and_post(bot: telebot.TeleBot):
     """
     Navbatda turgan eng birinchi postni olib, filtrdan o'tkazadi va chiqaradi.
     """
-    now = datetime.now()
-    if not (7 <= now.hour <= 23):
-        # Tungi vaqt, uxlaymiz
-        return
-        
     if not TARGET_CHANNEL_ID:
         return
 
@@ -179,6 +168,7 @@ def process_queue_and_post(bot: telebot.TeleBot):
             print(f"Kanalga yuborish 3 marta feyl bo'ldi. Tashlab yuborildi: {post['id']}")
 
 def setup_scheduler(bot: telebot.TeleBot):
+    # Saytdan 10 minutda yangilikni bazaga yig'ib turadi (24/7 ishlaydi)
     scheduler.add_job(
         fetch_and_queue_posts,
         trigger="interval",
@@ -186,20 +176,17 @@ def setup_scheduler(bot: telebot.TeleBot):
         kwargs={"bot": bot}
     )
     
-    scheduler.add_job(
-        process_queue_and_post,
-        trigger="interval",
-        minutes=15,
-        kwargs={"bot": bot}
-    )
+    # 07:00 dagi xayrli tong AI posti
+    scheduler.add_job(send_morning_greeting, trigger="cron", hour=7, minute=0, kwargs={"bot": bot})
     
-    # Ertalabki soat 7:00 da maxsus cron job ishlashi:
-    scheduler.add_job(
-        send_morning_greeting,
-        trigger="cron",
-        hour=7,
-        minute=0,
-        kwargs={"bot": bot}
-    )
-    
+    # Odamlar passiv vaqtida, eng ko'p o'qiladigan Prime-Time vaqtlardagi rejali nashr (15 ta)
+    post_times = [
+        (8, 15), (9, 30), (11, 0), (12, 30), 
+        (13, 15), (14, 0), (15, 30), (17, 0), 
+        (18, 0), (19, 0), (20, 0), (20, 45), 
+        (21, 30), (22, 15), (23, 15)
+    ]
+    for h, m in post_times:
+        scheduler.add_job(process_queue_and_post, trigger="cron", hour=h, minute=m, kwargs={"bot": bot})
+        
     fetch_and_queue_posts(bot)

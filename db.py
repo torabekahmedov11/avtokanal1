@@ -1,20 +1,46 @@
 import json
 import os
 import threading
+import requests
+import hashlib
+from config import BOT_TOKEN
 
 DB_FILE = "db.json"
 _db_lock = threading.Lock()
 
+# Xavfsiz, parolli cloud nomi yasaymiz.
+_kvdb_bucket = "avto_" + hashlib.md5(BOT_TOKEN.encode()).hexdigest()[:15]
+_kvdb_url = f"https://kvdb.io/bucket/{_kvdb_bucket}/db"
+
 def init_db():
+    global _db_lock
+    _db_lock = threading.Lock()
     with _db_lock:
         if not os.path.exists(DB_FILE):
+            print("Lokal baza yo'q. Cloud KVDB dan sinab ko'rilmoqda...")
+            try:
+                r = requests.get(_kvdb_url, timeout=5)
+                if r.status_code == 200 and r.json():
+                    data = r.json()
+                    with open(DB_FILE, 'w', encoding='utf-8') as f:
+                        json.dump(data, f, ensure_ascii=False, indent=4)
+                    print("✅ Onlayn xotiradan (Cloud) Database muvaffaqiyatli TIKLANDI!")
+                    return
+            except Exception as e:
+                print(f"Cloud dan tiklashda xato yoki xotira yo'q: {e}")
+                
             default_data = {
-                "donor_url": "https://lifehacker.com/rss",  # dunyodagi eng mashhur foydali maslahatlar sayti
+                "donor_url": "https://lifehacker.com/rss",
                 "last_scraped_id": "",
                 "seen_ids": [],
                 "queued_posts": []
             }
-            _save_unlocked(default_data)
+            # fayl yo'q bo'lsa _save_unlocked o'zi yozib cloudga 1-marta commit beradi
+            try:
+                with open(DB_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(default_data, f, ensure_ascii=False, indent=4)
+            except Exception as e:
+                print(e)
 
 def _load_unlocked():
     if not os.path.exists(DB_FILE):
@@ -23,8 +49,17 @@ def _load_unlocked():
         return json.load(f)
 
 def _save_unlocked(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    try:
+        with open(DB_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        
+        # Async bulutga commit qilish
+        def _upload():
+            try: requests.post(_kvdb_url, json=data, timeout=5)
+            except: pass
+        threading.Thread(target=_upload).start()
+    except Exception as e:
+        print(f"Xato (saqlash): {e}")
 
 def get_donor_url():
     with _db_lock:
@@ -88,31 +123,4 @@ def get_queued_count():
     with _db_lock:
         return len(_load_unlocked().get("queued_posts", []))
 
-def get_backup_data():
-    """Bot zaxirasini bitta matn string ko'rinishida generatsiya qiladi."""
-    with _db_lock:
-        data = _load_unlocked()
-        import base64
-        import copy
-        # Biz faqat last_scraped_id ni zaxiralashimiz muhim, queued posts yangitdan yuklanadi
-        # Lekin tunda ishlab navbatga yig'ilganlarni ham saqlab qolish yaxshi!
-        safe_data = copy.deepcopy(data)
-        # Barchasini json qilib Base64 ga aylantiramiz, matn xato ketmasligi uchun
-        encoded_bytes = base64.b64encode(json.dumps(safe_data).encode("utf-8"))
-        return f"💾 #BACKUP_DATA\n{encoded_bytes.decode('utf-8')}"
 
-def restore_backup(backup_string):
-    """Base64 stringdan datani olib db.json ga yozadi."""
-    try:
-        lines = backup_string.split('\n')
-        if len(lines) >= 2:
-            base64_str = lines[1].strip()
-            import base64
-            decoded_bytes = base64.b64decode(base64_str)
-            data = json.loads(decoded_bytes.decode("utf-8"))
-            with _db_lock:
-                _save_unlocked(data)
-            return True
-    except Exception as e:
-        print(f"Xotirani tiklash xatosi: {e}")
-    return False
