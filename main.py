@@ -1,6 +1,5 @@
 import telebot
 import db
-import ai_moderator
 from config import BOT_TOKEN, ADMIN_ID, TARGET_CHANNEL_ID
 from scheduler_jobs import setup_scheduler, scheduler, fetch_and_queue_posts, process_queue_and_post
 
@@ -100,61 +99,7 @@ def process_new_donor(message):
     bot.send_message(message.chat.id, f"✅ Muvaffaqiyatli! Yangi RSS Manba ulandi: {new_url} \n"
                          f"Endi yangi ma'lumotlarni yig'ib olish uchun /force_fetch ni bosing.")
 
-@bot.message_handler(content_types=['text', 'photo', 'video', 'document'], func=lambda m: getattr(m, 'is_automatic_forward', False) or (getattr(m, 'forward_from_chat', None) and str(m.forward_from_chat.id) == str(TARGET_CHANNEL_ID)) or getattr(m.from_user, 'id', None) == 777000)
-def handle_auto_forward(message):
-    """
-    Kanalga xabar tashlangach, u guruhga (COMMENT_CHANNEL_ID_group) forward qilinadi.
-    Bot uni ushlab olib, o'zining xotirasida o'sha xabarga tegishli [KOMMENT] bormi deb qaraydi va yozib yuboradi.
-    """
-    try:
-        channel_msg_id = getattr(message, 'forward_from_message_id', None)
-        if not channel_msg_id:
-            return
-            
-        pending_comment = db.get_pending_comment(channel_msg_id)
-        if pending_comment:
-            from scheduler_jobs import chunk_text
-            chunks = chunk_text(pending_comment, 4000)
-            for chunk in chunks:
-                bot.send_message(message.chat.id, chunk, reply_to_message_id=message.message_id, parse_mode="HTML")
-            db.delete_pending_comment(channel_msg_id)
-    except Exception as e:
-        print("Avto-forward izoh qo'shishda xato:", e)
 
-@bot.message_handler(func=lambda message: message.chat.type in ['group', 'supergroup'], content_types=['text'])
-def handle_group_messages(message):
-    text = message.text.lower()
-    
-    # Agar foydalanuvchi to'ppa-to'g'ri bot_username so'rasa yoki botga reply qilsa
-    try:
-        bot_info = bot.get_me()
-        is_reply_to_bot = message.reply_to_message and message.reply_to_message.from_user.id == bot_info.id
-        mentioned_admin = ("admin" in text) or ("adminka" in text) or (f"@{bot_info.username}".lower() in text)
-        
-        if is_reply_to_bot or mentioned_admin:
-            bot.send_chat_action(message.chat.id, 'typing')
-            
-            # Gemini-Ali funksiyasi ishga tushadi
-            reply_text = ai_moderator.generate_admin_reply(message.text, message.from_user.first_name)
-            
-            if not reply_text:
-                return
-                
-            if reply_text == "[FORWARD]":
-                # Adminga jo'natish (ADMIN_ID db da o'rnatilmagan env da bor)
-                try:
-                    bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
-                    username = f"@{message.from_user.username}" if message.from_user.username else message.from_user.first_name
-                    bot.send_message(ADMIN_ID, f"🚨 **Izohlardan murojaat / Reklama so'rovi:**\nKimdan: {username}")
-                except Exception as ex:
-                    print(f"Rahbarga xabarni forward qilishda xato: {ex}")
-                
-                bot.reply_to(message, "Bu murojaatingiz muhim, shuning uchun shaxsan kanal rahbariga (bosh adminga) yetkazdim. Sizga tez orada aloqaga chiqishadi! 🤝")
-            else:
-                bot.reply_to(message, reply_text)
-                
-    except Exception as e:
-        print(f"Guruh xabarlarida xato: {e}")
 
 if __name__ == "__main__":
     from keep_alive import keep_alive

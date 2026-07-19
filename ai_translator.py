@@ -65,18 +65,11 @@ Qat'iy Qoidalar (Sen'zura va O'zbekiston filtri):
 2. REKLAMA VA MAHALLIY LOKAL G'IYBAT: Tijoriy reklamalarni olib tashlang. Faqat AQShga xos yoki global qiziqishi yo'q mahalliy xabarlarni ham "[FILTERED]" qiling. Faqat texnologik va foydali / umumjahon hayotiy ma'lumotlarni tarjima qiling.
 
 Tarjima va Formatlash Qoidalari (O'ta muhim!):
-3. Ikki qismga ajratish: Matnni majburiy ravishda aniq ikki qismga bo'lib bering. Boshlanishi `[XABAR]` degan yozuv bilan, pastki qismi (batafsil izoh/qo'llanma) esa `[KOMMENT]` degan yozuv bilan ajratilib chiqishi shart! Agar ixcham matn bo'lsa ham shu qoidaga amal qilingiz.
-4. [XABAR] qismi (Kanal yuzi uchun): O'quvchi e'tiborini tortuvchi SARLAVHA bilan boshlang. Sarlavhani aslo "🚨" sirena kabi arzon emojilar bilan EMAS (umuman ishlatmang), balki HTML qalinligida (Masalan: <b>GOOGLE DRIVEDA XOTIRA TUGAYAPTIMI?</b>) deb e'lon qiling. Matnda rasmiy va zerikarli so'zlar ("ixlosmandlar", "ommalashgan" h.k) aslo ishlatmang. Qadrdon do'stlarga kofe ichib gapirib berayotgandek juda samimiy, erkin va oddiy tilda ("O'zimam bilmagandim", "Shokdaman") kabi o'zingizni shaxsiy fikringiz va reaksiyangiz bilan yozing. Matn o'ta qisqa va faktik (max 600 harf) bo'lsin. Tugatishda "<i>(Batafsil izohlarda 👇)</i>" deb ketilsin.
-5. O'qish vaqti: Sarlavhaning darhol ostiga kichkinagina kursiv qilib "<i>⏱ O'qish vaqti: 1 daqiqa</i>" deb yozing.
-6. [KOMMENT] qismi (Izohlar qutisi uchun): Aynan shu yerda har qanday qadamma-qadam qo'llanmalar teksti, uzoq ro'yxatlar va faktlar to'liq yozilishi kerak.
-7. Izohga (kommentga) so'rov: [KOMMENT] yoxud [XABAR] tugagach obunachilarni muhokamaga chorlaydigan erkin savol so'rang (Masalan: "Siz qaysini ishlatgan bo'lardingiz? 👇"). Va eng oxirigagina 2-3 ta hashtag kiriting.
-8. Formatlash (O'TA MUHIM!): Matn belgilarida qalin yoxud kursiv qilish uchun ASLO yulduzcha (*) yoki boshqa Markdown ishlata ko'rmang, o'rniga HTML teglardan (<b>, <i>) foydalaning.
-
-Sizning javobingiz strukturasi faqat shunday shaklda bo'lishi KAFOLATLANSIN:
-[XABAR]
-...
-[KOMMENT]
-...
+3. [XABAR] qismi (Kanal yuzi uchun): O'quvchi e'tiborini tortuvchi SARLAVHA bilan boshlang. Sarlavhani aslo "🚨" sirena kabi arzon emojilar bilan EMAS (umuman ishlatmang), balki HTML qalinligida (Masalan: <b>GOOGLE DRIVEDA XOTIRA TUGAYAPTIMI?</b>) deb e'lon qiling. Matnda rasmiy va zerikarli so'zlar ("ixlosmandlar", "ommalashgan" h.k) aslo ishlatmang. Qadrdon do'stlarga kofe ichib gapirib berayotgandek juda samimiy, erkin va oddiy tilda ("O'zimam bilmagandim", "Shokdaman") kabi o'zingizni shaxsiy fikringiz va reaksiyangiz bilan yozing. Matn faktlarni to'liq qamrab olgani qulay (maksimum 1000 ta harfdan oshmasin) bo'lsin.
+4. O'qish vaqti: Sarlavhaning darhol ostiga kichkinagina kursiv qilib "<i>⏱ O'qish vaqti: 1 daqiqa</i>" deb yozing.
+5. Til va tuzilma: Gapingiz shablon ("Mana tarjima") va sovuq bo'lmasin. Juda uzun jumlalarni kichik raqamlangan reyterlarga bo'ling.  
+6. Muhokamaga chorlov: Matn tugagach obunachilarni muhokamaga chorlaydigan erkin savol so'rang (Masalan: "Siz qaysini ishlatgan bo'lardingiz? 👇"). Va eng oxirigagina 2-3 ta hashtag kiriting.
+7. Formatlash (O'TA MUHIM!): Matn belgilarida qalin yoxud kursiv qilish uchun ASLO yulduzcha (*) yoki boshqa Markdown ishlata ko'rmang, o'rniga HTML teglardan (<b>, <i>) foydalaning.
 
 Asl matn:
 {text}
