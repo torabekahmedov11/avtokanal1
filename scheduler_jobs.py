@@ -3,8 +3,9 @@ import telebot
 import db
 import scraper
 import ai_translator
-from config import TARGET_CHANNEL_ID, CHANNEL_LINK, ADMIN_ID
+from config import TARGET_CHANNEL_ID, CHANNEL_LINK, ADMIN_ID, COMMENT_CHANNEL_ID
 from datetime import datetime
+import threading
 
 scheduler = BackgroundScheduler(timezone='Asia/Tashkent')
 
@@ -89,6 +90,27 @@ def parse_ai_response(text):
         
     return xabar, komment
 
+def fallback_comment_delivery(bot, msg_id, text, delay=20):
+    import time
+    import db
+    time.sleep(delay)
+    # Agar oradan 20 soniya o'tsa ham main.py dagi handler qabul qilolmagan bo'lsa (Privacy mode ehtiyotidan)
+    if db.get_pending_comment(msg_id):
+        try:
+            if COMMENT_CHANNEL_ID:
+                header = f"👆 <b>Yuqoridagi maqola bo'yicha batafsil izoh:</b>\n\n"
+                chunks = chunk_text(text, 3900)
+                for i, chunk in enumerate(chunks):
+                    if i == 0:
+                        bot.send_message(COMMENT_CHANNEL_ID, header + chunk, parse_mode="HTML")
+                    else:
+                        bot.send_message(COMMENT_CHANNEL_ID, chunk, parse_mode="HTML")
+        except Exception as e:
+            try: bot.send_message(ADMIN_ID, f"⚠️ Izohni sug'urta zaxirasidan (Fallback) yuborishda xato: {e}")
+            except: pass
+        finally:
+            db.delete_pending_comment(msg_id)
+
 def process_queue_and_post(bot: telebot.TeleBot):
     """
     Navbatda turgan eng birinchi postni olib, filtrdan o'tkazadi va chiqaradi.
@@ -142,6 +164,8 @@ def process_queue_and_post(bot: telebot.TeleBot):
         if comment_post and sent_msg:
             # Kommentni xotiraga yozamiz. main.py uni ushlab olib guruhdagi forward ostiga javob yozadi!
             db.add_pending_comment(sent_msg.message_id, comment_post)
+            # Yana bir kafolat uchun timer (fallback) ishga tushiramiz:
+            threading.Thread(target=fallback_comment_delivery, args=(bot, sent_msg.message_id, comment_post)).start()
                 
         print(f"✅ Kanalga POST yuborildi! (Qoldi: {db.get_queued_count()})")
     except Exception as e:
