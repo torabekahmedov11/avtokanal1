@@ -27,10 +27,11 @@ def get_working_model():
         ]
         
         for pref in preferred:
-            if pref in available:
-                _working_model_name = pref
-                print(f"Tanlangan model: {pref}")
-                return pref
+            for m in available:
+                if pref in m:
+                    _working_model_name = m
+                    print(f"Tanlangan model: {m}")
+                    return m
                 
         # Agar ulardan hech biri bo'lmasa, eng standart 'flash' yoki 'pro' modelini qidiramiz
         for m in available:
