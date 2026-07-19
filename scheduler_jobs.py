@@ -87,7 +87,7 @@ def split_for_caption(text, max_len=980):
         split_at = max_len
         
     caption = text[:split_at].strip()
-    caption += "\n\n*(Matnning davomi izohlarda 👇)*"
+    caption += "\n\n<i>(Matnning davomi izohlarda 👇)</i>"
     remainder = text[split_at:].strip()
     return caption, remainder
 

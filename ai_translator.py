@@ -65,8 +65,8 @@ Qat'iy Qoidalar (Sen'zura va O'zbekiston filtri):
 2. REKLAMA VA MAHALLIY LOKAL G'IYBAT: Tijoriy reklamalarni olib tashlang. Faqat AQShga xos yoki global qiziqishi yo'q mahalliy xabarlarni ham "[FILTERED]" qiling. Faqat texnologik va foydali / umumjahon hayotiy ma'lumotlarni tarjima qiling.
 
 Tarjima va Formatlash Qoidalari (O'ta muhim!):
-3. Sarlavha (Hook): Matnni eng qiziqarli, o'quvchi e'tiborini "tortib oluvchi" sarlavha bilan boshlang. Sarlavhaga emoji qo'shing va qalinlashtiring (Masalan: 🚨 **GOOGLE DRIVE'DA XOTIRA TUGAYAPTIMI?**).
-4. O'qish vaqti: Sarlavhaning darhol ostiga kichkinagina kursiv qilib "_⏱ O'qish vaqti: 1-2 daqiqa_" (matn hajmiga qarab) deb yozing.
+3. Sarlavha (Hook): Matnni eng qiziqarli, o'quvchi e'tiborini "tortib oluvchi" sarlavha bilan boshlang. Sarlavhaga emoji qo'shing va qalinlashtiring (Masalan: 🚨 <b>GOOGLE DRIVE'DA XOTIRA TUGAYAPTIMI?</b>).
+4. O'qish vaqti: Sarlavhaning darhol ostiga kichkinagina kursiv qilib "<i>⏱ O'qish vaqti: 1-2 daqiqa</i>" (matn hajmiga qarab) deb yozing.
 5. Til va tuzilma: Gapingiz shablon ("Mana tarjima") va sovuq bo'lmasin. Juda uzun jumlalarni pointlarga (kichik raqamlangan reyterlarga) bo'ling.  
 6. Izohga (kommentga) so'rov: Matn tugagach obunachilarni muhokamaga chorlaydigan Ochiq Savol so'rang (Masalan: "Siz telefoningizda reklama o'chiradigan dastur ishlatasizmi? Izohlarda yozing 👇").
 7. Hashtaglar: Post eng oxiriga guruhlash uchun 2 ta yoki 3 ta hashtag qo'shing. (Masalan: #layfxak #android).
