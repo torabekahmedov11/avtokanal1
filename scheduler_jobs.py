@@ -3,6 +3,8 @@ import telebot
 import db
 import scraper
 import ai_translator
+from telegraph_api import create_telegraph_page
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import TARGET_CHANNEL_ID, CHANNEL_LINK, ADMIN_ID
 from datetime import datetime
 
@@ -55,6 +57,21 @@ def fetch_and_queue_posts(bot=None):
     if new_posts:
         db.set_last_id(highest_id)
 
+def parse_telegraph_response(text):
+    xabar = text
+    batafsil = ""
+    
+    if "[XABAR]" in text and "[BATAFSIL]" in text:
+        parts = text.split("[BATAFSIL]")
+        xabar = parts[0].replace("[XABAR]", "").strip()
+        batafsil = parts[1].strip()
+    elif "[BATAFSIL]" in text:
+        parts = text.split("[BATAFSIL]")
+        xabar = parts[0].strip()
+        batafsil = parts[1].strip()
+        
+    return xabar, batafsil
+
 def process_queue_and_post(bot: telebot.TeleBot):
     """
     Navbatda turgan eng birinchi postni olib, filtrdan o'tkazadi va chiqaradi.
@@ -86,21 +103,31 @@ def process_queue_and_post(bot: telebot.TeleBot):
     # Agar AI baribir yulduzchalardan foydalangan bo'lsa, xato bermasligi uchun qolgan * ni olib tashlash ham mumkin:
     translated_text = translated_text.replace('**', '').replace('*', '')
 
+    main_post, batafsil_post = parse_telegraph_response(translated_text)
+
     # Post oxiriga kanal shiori va ssilkasini biriktirish
     slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
-    main_post = translated_text + slogan
+    main_post += slogan
 
     try:
         video_url = post.get('video')
         image_url = post.get('image')
         
+        # Telegraph linkni tayyorlash
+        markup = None
+        if batafsil_post:
+            telegraph_url = create_telegraph_page(title=post.get('title', 'Batafsil Qo\'llanma'), html_content=batafsil_post)
+            if telegraph_url:
+                markup = InlineKeyboardMarkup()
+                markup.add(InlineKeyboardButton("👉 Batafsil o'qish", url=telegraph_url))
+        
         sent_msg = None
         if video_url:
-            bot.send_video(TARGET_CHANNEL_ID, video_url, caption=main_post, parse_mode="HTML")
+            bot.send_video(TARGET_CHANNEL_ID, video_url, caption=main_post, parse_mode="HTML", reply_markup=markup)
         elif image_url:
-            bot.send_photo(TARGET_CHANNEL_ID, image_url, caption=main_post, parse_mode="HTML")
+            bot.send_photo(TARGET_CHANNEL_ID, image_url, caption=main_post, parse_mode="HTML", reply_markup=markup)
         else:
-            bot.send_message(TARGET_CHANNEL_ID, main_post, parse_mode="HTML")
+            bot.send_message(TARGET_CHANNEL_ID, main_post, parse_mode="HTML", reply_markup=markup)
             
         print(f"✅ Kanalga POST yuborildi! (Qoldi: {db.get_queued_count()})")
     except Exception as e:
