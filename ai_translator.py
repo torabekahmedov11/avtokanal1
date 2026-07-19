@@ -21,11 +21,9 @@ def get_working_model():
         print(f"API kalitda mavjud modellar: {available}")
         
         preferred = [
-            'gemini-3.5-flash', 'gemini-3.1-flash', 'gemini-3-flash',
-            'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash',
-            'gemini-3.1-pro', 'gemini-3-pro', 'gemini-2.5-pro',
-            'gemini-2.0-pro', 'gemini-1.5-pro', 'gemini-1.0-pro', 
-            'gemini-pro', 'gemini-pro-latest', 'gemini-flash-lite-latest'
+            'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash',
+            'gemini-2.5-flash', 'gemini-3.0-flash', 'gemini-3.1-flash',
+            'gemini-3.5-flash', 'gemini-pro', 'gemini-flash-lite-latest'
         ]
         
         for pref in preferred:
