@@ -7,7 +7,32 @@ if GEMINI_API_KEY:
 _working_model_name = None
 
 def get_working_model():
-    return 'gemini-2.5-flash-lite'
+    global _working_model_name
+    if _working_model_name:
+        return _working_model_name
+
+    candidates = [
+        'gemini-flash-lite-latest',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-pro-latest'
+    ]
+    
+    # Eng zo'ri: haqiqatda ishlayotganini jonli test qilib izlash
+    for cand in candidates:
+        try:
+            m = genai.GenerativeModel(cand)
+            resp = m.generate_content("ping", request_options={"timeout": 5.0})
+            if resp.text:
+                print(f"JONLI SINOVDA ISHLADI: {cand}")
+                _working_model_name = cand
+                return cand
+        except Exception as e:
+            print(f"{cand} sinovda ishlamadi: {e}")
+            continue
+            
+    # Agar hech biri ishlamasa eng standardini qaytaramiz baribir
+    return 'gemini-flash-lite-latest'
 
 def translate_and_spice_up(text):
     if not GEMINI_API_KEY:
