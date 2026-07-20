@@ -7,7 +7,7 @@ if GEMINI_API_KEY:
 _working_model_name = None
 
 def get_working_model():
-    return 'gemini-1.5-flash'
+    return 'gemini-flash-latest'
 
 def translate_and_spice_up(text):
     if not GEMINI_API_KEY:
