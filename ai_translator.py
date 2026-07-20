@@ -7,49 +7,7 @@ if GEMINI_API_KEY:
 _working_model_name = None
 
 def get_working_model():
-    global _working_model_name
-    if _working_model_name:
-        return _working_model_name
-        
-    try:
-        available = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                name = m.name.replace('models/', '')
-                available.append(name)
-        
-        print(f"API kalitda mavjud modellar: {available}")
-        
-        preferred = [
-            'gemini-flash-latest', 'gemini-pro-latest', 'gemini-2.5-flash-lite',
-            'gemini-2.5-flash', 'gemini-3.0-flash', 'gemini-3.5-flash'
-        ]
-        
-        for pref in preferred:
-            for m in available:
-                if pref in m:
-                    _working_model_name = m
-                    print(f"Tanlangan model: {m}")
-                    return m
-                
-        # Agar ulardan hech biri bo'lmasa, eng standart 'flash' yoki 'pro' modelini qidiramiz
-        for m in available:
-            if 'flash' in m or 'pro' in m:
-                # Maxsus tts, image, deep-research modellaridan qochamiz
-                if not any(x in m for x in ['image', 'tts', 'deep-research', 'preview', 'customtools']):
-                    _working_model_name = m
-                    print(f"Zaxira sifatida tanlangan text model: {m}")
-                    return m
-                    
-        if available:
-            _working_model_name = available[0]
-            return available[0]
-            
-    except Exception as e:
-        print(f"Modellarni yuklashda xato (Fallback qo'llaniladi): {e}")
-        
-    _working_model_name = 'gemini-1.5-flash'
-    return _working_model_name
+    return 'gemini-1.5-flash'
 
 def translate_and_spice_up(text):
     if not GEMINI_API_KEY:
