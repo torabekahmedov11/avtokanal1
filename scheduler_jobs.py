@@ -10,10 +10,10 @@ from datetime import datetime
 
 scheduler = BackgroundScheduler(timezone='Asia/Tashkent')
 
-def fetch_and_queue_posts(bot=None):
+def fetch_and_queue_posts(bot=None, force=False):
     """
     Saytdan yangi postlarni topadi va navbatga qo'shadi.
-    Eski postlar hech qachon qayta yuborilmaydi (seen_ids tekshiruvi orqali).
+    force=True bo'lganda yoki navbat bo'm-bo'sh bo'lsa, avtomatik ravishda eng yangi postlarni navbatga joylaydi.
     """
     donor = db.get_donor_url()
     last_id = db.get_last_id()
@@ -32,27 +32,13 @@ def fetch_and_queue_posts(bot=None):
     if not all_posts:
         return
         
-    # Birinchi marta ishga tushganda barcha eski postlarni "ko'rilgan" deb belgilaymiz,
-    # faqat eng oxirgi 1 ta postni navbatga olamiz (eski 70 ta post tiqilib qolmasligi uchun)
-    if not last_id:
-        print("Birinchi skraping: barcha eski postlar bazada ko'rilgan deb belgilandi.")
-        all_ids = [p["id"] for p in all_posts]
-        db.mark_multiple_as_seen(all_ids)
-        latest_post = all_posts[-1]
-        if latest_post.get("text"):
-            db.add_queued_post(latest_post)
-            db.set_last_id(latest_post["id"])
-            print(f"Birinchi yangi post navbatga qo'shildi: {latest_post['id']}")
-        return
-
-    # Keyingi barcha skrapinglarda: faqat ilgari KO'RILMAGAN yangi postlarni olamiz
+    # 1. Yangi ko'rilmagan postlarni topish
     new_count = 0
     for post in all_posts:
         pid = post.get("id")
         if not pid or db.is_post_seen(pid):
             continue
 
-        # Postni darhol ko'rilgan deb belgilaymiz
         db.mark_as_seen(pid)
         db.set_last_id(pid)
 
@@ -61,8 +47,21 @@ def fetch_and_queue_posts(bot=None):
             new_count += 1
             print(f"Yangi post navbatga tushdi: {pid}")
 
+    # 2. Agar navbat hali ham BO'SH bo'lsa (yoki /force_fetch bosilgan bo'lsa):
+    # Eng so'nggi 3 ta postni majburiy navbatga qo'shamiz (bot 'Bazada post yo'q' deb to'xtab qolmasligi uchun)
+    if (force or db.get_queued_count() == 0) and all_posts:
+        print("Navbat bo'sh bo'lgani uchun eng so'nggi postlar navbatga kiritilmoqda...")
+        latest_posts = all_posts[-3:] if len(all_posts) >= 3 else all_posts
+        for post in latest_posts:
+            if post.get("text"):
+                db.add_queued_post(post)
+                db.mark_as_seen(post["id"])
+                db.set_last_id(post["id"])
+                new_count += 1
+                print(f"Navbatga majburiy post qo'shildi: {post['id']}")
+
     if new_count > 0:
-        print(f"Jami {new_count} ta yangi post navbatga joylandi.")
+        print(f"Jami {new_count} ta post navbatga joylandi (Navbatda jami: {db.get_queued_count()} ta).")
 
 def parse_telegraph_response(text):
     xabar = text

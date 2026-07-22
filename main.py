@@ -50,7 +50,7 @@ def cmd_force_fetch(message):
     if not is_admin(message.from_user.id):
         return
     bot.send_message(message.chat.id, "Sikraping ishga tushirildi... Kutib turing.")
-    fetch_and_queue_posts()
+    fetch_and_queue_posts(bot=bot, force=True)
     bot.send_message(message.chat.id, f"Skraping tugadi! Navbatda {db.get_queued_count()} ta post yig'ildi.")
 
 @bot.message_handler(commands=['force_post'])
