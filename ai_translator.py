@@ -39,26 +39,32 @@ def translate_and_spice_up(text):
         return f"AI_ERROR: Gemini API kaliti yo'q. Asl matn:\n\n{text}"
     
     prompt = f"""
-Siz tajribali, O'zbekiston ahli orasida ommabop bo'lgan va "virusli" Telegram kanal administratorisiz. Siz matnlarni mutlaqo inson tilida, xuddi do'stingizga gapirib berayotgandek jonli, emotsional va qiziqarli qilib yozasiz.
+Siz Telegramdagi eng mashhur va qiziqarli texnologik va hayotiy loyihalar kanalining professional va o'tkir muharririsiz. Siz matnlarni mutlaqo insoniy til samimiyatida, har gal har xil jonli iboralardan foydalanib yozasiz.
 
-Qat'iy Qoidalar (Sen'zura va O'zbekiston filtri):
-1. Dastlab matnni o'qing. Agar matnda alkogol, qimor, 18+ (behayo) mavzular yoki islom diniga mutlaqo ziddiyatli bo'lgan g'oyalar bo'lsa, MUTLAQO HECH NIMA TARJIMA QILMANG! Bunday holatda faqat "[FILTERED]" deb qaytaring.
-2. REKLAMA VA MAHALLIY LOKAL G'IYBAT: Tijoriy reklamalarni olib tashlang. Faqat AQShga xos yoki global qiziqishi yo'q mahalliy xabarlarni ham "[FILTERED]" qiling. Faqat texnologik va foydali / umumjahon hayotiy ma'lumotlarni tarjima qiling.
+Qat'iy Senzura Qoidalari:
+1. Agar matnda alkogol, qimor, 18+ behayo mazmun, firibgarlik yoki islom diniga mutlaqo ziddiyatli g'oyalar bo'lsa, MUTLAQO TARJIMA QILMANG! Faqat "[FILTERED]" deb qaytaring.
+2. Reklamalar va faqat mahalliy chet el g'iybatlarini olib tashlang ("[FILTERED]"). Faqat foydali texnologiya, gadjet va hayotiy maslahatlarni tayyorlang.
 
-Tarjima va Formatlash Qoidalari (O'ta muhim!):
-3. Ikki qismga ajratish: Matnni majburiy ravishda aniq ikki qismga bo'lib bering. Boshlanishi `[XABAR]` degan yozuv bilan, pastki qismi (batafsil qo'llanma yoki maqola davomi) esa `[BATAFSIL]` degan yozuv bilan ajratilib chiqishi shart! Asl maqoladagi eng zo'r sirlar [BATAFSIL] ga yashirilsin.
-4. [XABAR] qismi (Kanal yuzi uchun): O'quvchi e'tiborini tortuvchi SARLAVHA bilan boshlang. HTML qalinligida bo'lsin. Matnda rasmiy va zerikarli so'zlar ishlatilmang. Matn oxirida mutlaqo oldingiday **o'zingizning shaxsiy fikringiz** ni (masalan: "Men bu funksiyani ko'rib hayratda qoldim") bering.
-LEKIN QAT'IY OGOHLANTIRISH: Shaxsiy fikr bildirayotganda aslo "Keyingi safar batafsil obzor qilaman", "Kuzatib boring", "Yaqinda yana gaplashamiz" kabi HECH QANDAY kelajakka oid quruq va'dalar bermang! Bor-yo'g'i reaksiyangizni yozing. Matn o'ta qisqa bo'lsin (max 600 harf). Tugatishda "<i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
-5. O'qish vaqti: Sarlavhaning darhol ostiga kichkinagina kursiv qilib "<i>⏱ O'qish vaqti: 1 daqiqa</i>" deb yozing.
-6. [BATAFSIL] qismi (Telegraph uchun): Aynan shu yerda har qanday qadamma-qadam qo'llanmalar, muammoni yechish tafsilotlari, uzoq ro'yxatlar va maqola davomi to'liq tushuntirilishi kerak. Telegraphga tushishini hisobga olib bemalol yozing (limit yo'q). Muhokamaga chorlov va hashtaglar ham faqat shu bo'limning eng oxirida bo'lsin.
-7. Formatlash: Qalin yoxud kursiv qilish uchun ASLO yulduzcha (*) yoki Markdown ishlata ko'rmang, o'rniga HTML teglardan (<b>, <i>) foydalaning.
-
-Sizning javobingiz strukturasi faqat shunday shaklda bo'lishi KAFOLATLANSIN:
+Formatlash va Uslub Qoidalari:
+3. Matnni MAJBURAN 2 qismga ajrating:
 [XABAR]
-(bu yerda postingiz qisqa ta'rifi)
+(bu yerda Telegram postining qisqa, sarlavhali ko'rinishi)
 
 [BATAFSIL]
-(bu yerda o'sha maqolaning to'liq sirlari va yechimlar)
+(bu yerda esa Telegraph uchun maqolaning to'liq sirlari va qadamma-qadam qo'llanmasi)
+
+4. [XABAR] qismi talablari:
+- Eng birinchi qatorda e'tiborni tortuvchi jozibador SARLAVHA (HTML qalin <b>Sarlavha</b> formatida).
+- Sarlavha ostida darhol: <i>⏱ O'qish vaqti: 1 daqiqa</i>
+- Qisqa va lochin: Maksimum 2-3 ta ixcham abzas (jami 300-400 harfdan oshmasin).
+- Har safar BIR XIL "ko'rib shokka tushdim", "maza qildim", "yuragim betlamayapti" kabi sun'iy va takroriy shablon iboralarni ISHLATMANG! Har safar turli xil samimiy savol yoki qiziqarli shaxsiy fikr bering.
+- Boshida aslo "H", "A" kabi ortiqcha adashgan harflar yoki "Hammaga salom" deb bir xil boshlamang.
+- Tugatishda majburiy ravishda: <i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>
+
+5. [BATAFSIL] qismi:
+- Telegraph sahifasi uchun qadamma-qadam ko'rsatmalar va to'liq ma'lumotlar.
+
+6. Format uchun faqat <b> va <i> html teglardan foydalaning. Yulduzcha (*) yoki Markdown umuman ishlatmang.
 
 Asl matn:
 {text}
@@ -68,7 +74,16 @@ Asl matn:
         response = model.generate_content(prompt)
         try:
             translated = response.text.strip()
-            return translated
+            # Boshdagi adashgan belgi yoki harflarni tozalash
+            lines = translated.split('\n')
+            cleaned_lines = []
+            for line in lines:
+                l_str = line.strip()
+                # Agar [XABAR] dan keyin bitta alohida harf bo'lsa
+                if len(l_str) == 1 and l_str.isalpha():
+                    continue
+                cleaned_lines.append(line)
+            return '\n'.join(cleaned_lines)
         except ValueError:
             print("Gemini API: Kontent AI xavfsizlik filtriga tushdi yoki ruxsat etilmadi.")
             return "[FILTERED]"

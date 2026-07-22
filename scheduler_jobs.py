@@ -78,6 +78,19 @@ def parse_telegraph_response(text):
         
     return xabar, batafsil
 
+def get_post_markup(telegraph_url=None):
+    markup = InlineKeyboardMarkup(row_width=2)
+    buttons = []
+    if telegraph_url:
+        buttons.append(InlineKeyboardButton("👉 Batafsil o'qish", url=telegraph_url))
+    if CHANNEL_LINK:
+        ch_link = CHANNEL_LINK if CHANNEL_LINK.startswith("http") else f"https://t.me/{CHANNEL_LINK.replace('@', '')}"
+        buttons.append(InlineKeyboardButton("➕ Obuna bo'lish", url=ch_link))
+    if buttons:
+        markup.add(*buttons)
+        return markup
+    return None
+
 def send_morning_greeting(bot: telebot.TeleBot):
     """Ertalab soat 07:00 da uyg'onib salomlashish layfxaki tashlaydi."""
     print(f"[{datetime.now()}] TONGGI MAXSUS POST YARATILMOQDA...")
@@ -86,15 +99,12 @@ def send_morning_greeting(bot: telebot.TeleBot):
         return
         
     main_post, batafsil_post = parse_telegraph_response(text)
-    slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
-    main_post += slogan
     
-    markup = None
+    telegraph_url = None
     if batafsil_post:
         telegraph_url = create_telegraph_page(title="Xayrli tong!", html_content=batafsil_post)
-        if telegraph_url:
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("👉 Batafsil o'qish", url=telegraph_url))
+        
+    markup = get_post_markup(telegraph_url)
             
     try:
         send_post_to_channel(bot, TARGET_CHANNEL_ID, main_post, markup=markup)
@@ -160,21 +170,16 @@ def process_queue_and_post(bot: telebot.TeleBot):
 
     main_post, batafsil_post = parse_telegraph_response(translated_text)
 
-    # Post oxiriga kanal shiori va ssilkasini biriktirish
-    slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
-    main_post += slogan
-
     try:
         video_url = post.get('video')
         image_url = post.get('image')
         
-        # Telegraph linkni tayyorlash
-        markup = None
+        # Telegraph linkni va Inline tugmalarni tayyorlash
+        telegraph_url = None
         if batafsil_post:
             telegraph_url = create_telegraph_page(title=post.get('title', 'Batafsil Qo\'llanma'), html_content=batafsil_post)
-            if telegraph_url:
-                markup = InlineKeyboardMarkup()
-                markup.add(InlineKeyboardButton("👉 Batafsil o'qish", url=telegraph_url))
+            
+        markup = get_post_markup(telegraph_url)
         
         send_post_to_channel(bot, TARGET_CHANNEL_ID, main_post, video_url=video_url, image_url=image_url, markup=markup)
             
