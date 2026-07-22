@@ -158,4 +158,8 @@ def get_queued_count():
     with _db_lock:
         return len(_load_unlocked().get("queued_posts", []))
 
+def get_seen_count():
+    with _db_lock:
+        return len(_load_unlocked().get("seen_ids", []))
+
 

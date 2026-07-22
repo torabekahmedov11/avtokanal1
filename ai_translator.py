@@ -55,11 +55,11 @@ Formatlash va Uslub Qoidalari:
 
 4. [XABAR] qismi talablari:
 - Eng birinchi qatorda e'tiborni tortuvchi jozibador SARLAVHA (HTML qalin <b>Sarlavha</b> formatida).
-- Sarlavha ostida darhol: <i>⏱ O me'yordagi o'qish vaqti: 1 daqiqa</i>
 - Qisqa va lochin: Maksimum 2-3 ta ixcham abzas (jami 300-400 harfdan oshmasin).
 - Mantiq va Xolislik: Aslo bir postda "o'rnatmang!", ikkinchi postda "o'rnating!" deb ziddiyatli yoki mantiqsiz vahima ko'tarib sun'iy emotsiyalarga berilmang. Muharrir sifatida xolis, muvozanatli va foydali ma'lumot bering (masalan: beta versiyaning imkoniyatlarini va xavfini xolis tushuntiring).
 - Har safar BIR XIL "shokka tushdim", "maza qildim" kabi sun'iy va takroriy shablon iboralarni ISHLATMANG!
 - Boshida aslo "H", "A" kabi ortiqcha adashgan harflar yoki bir xil salomlashuvlar ishlatmang.
+- O'qish vaqti haqidagi yozuvlarni ISHLATMANG!
 - Tugatishda majburiy ravishda: <i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>
 
 5. [BATAFSIL] qismi:
@@ -75,13 +75,14 @@ Asl matn:
         response = model.generate_content(prompt)
         try:
             translated = response.text.strip()
-            # Boshdagi adashgan belgi yoki harflarni tozalash
+            # Boshdagi adashgan belgi yoki harflarni va o'qish vaqti matnini tozalash
             lines = translated.split('\n')
             cleaned_lines = []
             for line in lines:
                 l_str = line.strip()
-                # Agar [XABAR] dan keyin bitta alohida harf bo'lsa
                 if len(l_str) == 1 and l_str.isalpha():
+                    continue
+                if "o'qish vaqti" in l_str.lower() or "oqish vaqti" in l_str.lower():
                     continue
                 cleaned_lines.append(line)
             return '\n'.join(cleaned_lines)
@@ -101,15 +102,14 @@ def generate_morning_lifehack():
     Siz Telegramdagi "Avtokanal" (yoki foydali layfxaklar) kanalining samimiy va do'stona adminisiz. Obunachilaringizga yaxshi kayfiyat ulashish obro'yingiz uchun juda muhim.
     
     Sizning vazifangiz:
-    Roppa-rosa ertalab soat 07:00 uchun bitta bomba, sinalgan haqiqiy "layfxak" (hayotni yengillashtiruvchi maslahat yoxud maxfiy funksiya) o'ylab topish. Bu tarjima emas, o'zingiz bilgan mukammal texnologik fakt bo'lsin.
+    Bitta bomba, sinalgan haqiqiy "layfxak" (hayotni yengillashtiruvchi maslahat yoxud maxfiy funksiya) o'ylab topish. Bu tarjima emas, o'zingiz bilgan mukammal texnologik fakt bo'lsin.
     
     Format:
     1. Albatta qiziqarli usulda Salomlashish bilan boshlang (Masalan: "Xayrli tong, qadrdonlar!", "Yangi kun muborak, texnomanlar!" h.k).
     2. Yana o'sha qoidalarga muvofiq, [XABAR] va [BATAFSIL] degan ikki qismga bo'ling.
-    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida ertalab ishga ketayotgan odamning kayfiyatini ko'taradigan do'stona gap jumlasi, sirlarga boy bitta fakt va o'zingizni Shaxsiy Fikringizni qisqa yozing. LEKIN "Keyingi safar", "Tez orada obzor qilaman" degan hech qanday va'da bermang! Matn 1000 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. Tugatishda "<i>(Barchasini bilish yoxud o'rnatish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
-    4. Sarlavhaning darhol ostiga kichkinagina kursiv qilib "<i>⏱ O'qish vaqti: 1 daqiqa</i>" deb yozing.
-    5. [BATAFSIL] qismiga o'sha layfxakning qadamma qadam qanday yasalishini tushuntiring.
-    6. Format uchun faqat <b> va <i> html ishlating. Hech qanday yulduzchalar yo'q.
+    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida do'stona gap jumlasi, sirlarga boy bitta fakt va shaxsiy fikr yozing. Matn 600 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. O'qish vaqti yozuvini ISHLATMANG! Tugatishda "<i>(Barchasini bilish yoxud o'rnatish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
+    4. [BATAFSIL] qismiga o'sha layfxakning qadamma qadam qanday yasalishini tushuntiring.
+    5. Format uchun faqat <b> va <i> html ishlating. Hech qanday yulduzchalar yo'q.
     
     Shablon:
     [XABAR]
@@ -121,7 +121,9 @@ def generate_morning_lifehack():
         model = genai.GenerativeModel(get_working_model())
         response = model.generate_content(prompt)
         text = response.text.strip().replace('**', '').replace('*', '')
-        return text
+        # O'qish vaqti yozuvlarini tozalash
+        lines = [l for l in text.split('\n') if "o'qish vaqti" not in l.lower() and "oqish vaqti" not in l.lower()]
+        return '\n'.join(lines)
     except Exception as e:
         print(f"Ertalabki layfxak xatosi: {e}")
         return None

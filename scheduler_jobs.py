@@ -10,10 +10,17 @@ from datetime import datetime
 
 scheduler = BackgroundScheduler(timezone='Asia/Tashkent')
 
+def is_nighttime():
+    """Toshkent vaqti bo'yicha 23:00 va 07:00 oralig'i (Tungi sukunat)."""
+    now = datetime.now()
+    return now.hour >= 23 or now.hour < 7
+
 def fetch_and_queue_posts(bot=None, force=False):
     """
-    Saytdan yangi postlarni topadi va navbatga qo'shadi.
-    force=True bo'lganda yoki navbat bo'm-bo'sh bo'lsa, avtomatik ravishda eng yangi postlarni navbatga joylaydi.
+    Saytdan yangiliklarni tekshiradi.
+    - Kunduzi (07:00 - 23:00): Yangi post topilsa, DARHOL kanalga joylaydi!
+    - Tunda (23:00 - 07:00): Yangi postlarni yig'adi va ertalab uchun navbatda saqlaydi.
+    - force=True (Admin bosganda): Majburiy ravishda post yig'adi.
     """
     donor = db.get_donor_url()
     last_id = db.get_last_id()
@@ -32,8 +39,8 @@ def fetch_and_queue_posts(bot=None, force=False):
     if not all_posts:
         return
         
-    # 1. Yangi ko'rilmagan postlarni topish
-    new_count = 0
+    # 1. Ko'rilmagan yangi postlarni topish
+    new_posts = []
     for post in all_posts:
         pid = post.get("id")
         if not pid or db.is_post_seen(pid):
@@ -43,25 +50,32 @@ def fetch_and_queue_posts(bot=None, force=False):
         db.set_last_id(pid)
 
         if post.get("text"):
-            db.add_queued_post(post)
-            new_count += 1
-            print(f"Yangi post navbatga tushdi: {pid}")
+            new_posts.append(post)
+            print(f"Yangi post topildi: {pid}")
 
-    # 2. Agar navbat hali ham BO'SH bo'lsa (yoki /force_fetch bosilgan bo'lsa):
-    # Eng so'nggi 3 ta postni majburiy navbatga qo'shamiz (bot 'Bazada post yo'q' deb to'xtab qolmasligi uchun)
-    if (force or db.get_queued_count() == 0) and all_posts:
-        print("Navbat bo'sh bo'lgani uchun eng so'nggi postlar navbatga kiritilmoqda...")
-        latest_posts = all_posts[-3:] if len(all_posts) >= 3 else all_posts
-        for post in latest_posts:
-            if post.get("text"):
-                db.add_queued_post(post)
-                db.mark_as_seen(post["id"])
-                db.set_last_id(post["id"])
-                new_count += 1
-                print(f"Navbatga majburiy post qo'shildi: {post['id']}")
+    # 2. Force fetch bo'lsa
+    if force:
+        posts_to_add = new_posts if new_posts else (all_posts[-3:] if len(all_posts) >= 3 else all_posts)
+        for p in posts_to_add:
+            db.add_queued_post(p)
+            db.mark_as_seen(p["id"])
+            db.set_last_id(p["id"])
+        print(f"Force fetch: {len(posts_to_add)} ta post navbatga majburan joylandi.")
+        return
 
-    if new_count > 0:
-        print(f"Jami {new_count} ta post navbatga joylandi (Navbatda jami: {db.get_queued_count()} ta).")
+    if not new_posts:
+        return
+
+    # 3. Tunda bo'lsa navbatga saqlaymiz, kunduzi bo'lsa navbatga joylab DARHOL bittasini chiqarishga beramiz
+    for p in new_posts:
+        db.add_queued_post(p)
+
+    if is_nighttime():
+        print(f"Tungi rejim (23:00-07:00): {len(new_posts)} ta yangi post ertalabki nashr uchun navbatga olindi.")
+    else:
+        print(f"Kunduzgi rejim: {len(new_posts)} ta yangi post topildi! DARHOL kanalga chiqarilmoqda...")
+        if bot:
+            process_queue_and_post(bot)
 
 def parse_telegraph_response(text):
     xabar = text
@@ -92,25 +106,28 @@ def get_post_markup(telegraph_url=None):
     return None
 
 def send_morning_greeting(bot: telebot.TeleBot):
-    """Ertalab soat 07:00 da uyg'onib salomlashish layfxaki tashlaydi."""
-    print(f"[{datetime.now()}] TONGGI MAXSUS POST YARATILMOQDA...")
+    """Ertalabki yoki navbat bo'shaganda chiqariladigan sun'iy AI Layfxak po'sti."""
+    print(f"[{datetime.now()}] MAXSUS AI LAYFXAK POST YARATILMOQDA...")
     text = ai_translator.generate_morning_lifehack()
     if not text:
         return
         
     main_post, batafsil_post = parse_telegraph_response(text)
     
+    slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
+    main_post += slogan
+
     telegraph_url = None
     if batafsil_post:
-        telegraph_url = create_telegraph_page(title="Xayrli tong!", html_content=batafsil_post)
+        telegraph_url = create_telegraph_page(title="Foydali Layfxak", html_content=batafsil_post)
         
     markup = get_post_markup(telegraph_url)
             
     try:
         send_post_to_channel(bot, TARGET_CHANNEL_ID, main_post, markup=markup)
-        print("✅ Tonggi salomlashuv post kanalga ketdi!")
+        print("✅ Special AI Layfxak post kanalga ketdi!")
     except Exception as e:
-        print(f"Tonggi post jo'natish xatosi: {e}")
+        print(f"Layfxak post jo'natish xatosi: {e}")
 
 def send_post_to_channel(bot: telebot.TeleBot, channel_id, main_post, video_url=None, image_url=None, markup=None):
     """
@@ -139,13 +156,22 @@ def send_post_to_channel(bot: telebot.TeleBot, channel_id, main_post, video_url=
 
 def process_queue_and_post(bot: telebot.TeleBot):
     """
-    Navbatda turgan eng birinchi postni olib, filtrdan o'tkazadi va chiqaradi.
+    Navbatdagi postni kanalga joylaydi.
+    1. Tunda bo'lsa (23:00 - 07:00): Sukunat saqlanadi.
+    2. Navbatda post bo'lsa: Uni chiqaradi.
+    3. Navbatda post ham bo'lmasa: AI Livehack yaratib joylaydi.
     """
     if not TARGET_CHANNEL_ID:
         return
 
+    if is_nighttime():
+        print("Tungi rejim (23:00 - 07:00): Avto-nashr to'xtatilgan.")
+        return
+
     post = db.get_next_post()
     if not post:
+        print("Navbat bo'sh: AI Livehack generatsiya qilib kanalga chiqarilmoqda...")
+        send_morning_greeting(bot)
         return
         
     print(f"Postga ishlov berilmoqda ({post['id']})...")
@@ -165,16 +191,17 @@ def process_queue_and_post(bot: telebot.TeleBot):
         print(f"Post SENZURAdan o'tmadi! Bloklandi.")
         return
 
-    # Agar AI baribir yulduzchalardan foydalangan bo'lsa, xato bermasligi uchun qolgan * ni olib tashlash ham mumkin:
     translated_text = translated_text.replace('**', '').replace('*', '')
-
     main_post, batafsil_post = parse_telegraph_response(translated_text)
+
+    # Shior va kanal manzilini post oxiriga biriktirish
+    slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}"
+    main_post += slogan
 
     try:
         video_url = post.get('video')
         image_url = post.get('image')
         
-        # Telegraph linkni va Inline tugmalarni tayyorlash
         telegraph_url = None
         if batafsil_post:
             telegraph_url = create_telegraph_page(title=post.get('title', 'Batafsil Qo\'llanma'), html_content=batafsil_post)
@@ -198,7 +225,7 @@ def process_queue_and_post(bot: telebot.TeleBot):
             print(f"Kanalga yuborish 3 marta feyl bo'ldi. Tashlab yuborildi: {post['id']}")
 
 def setup_scheduler(bot: telebot.TeleBot):
-    # Saytdan 10 minutda yangilikni bazaga yig'ib turadi (24/7 ishlaydi)
+    # 1. Saytdan har 10 minutda yangilikni tekshirib turadi (Kunduzi darhol joylaydi, tunda yig'adi)
     scheduler.add_job(
         fetch_and_queue_posts,
         trigger="interval",
@@ -206,15 +233,15 @@ def setup_scheduler(bot: telebot.TeleBot):
         kwargs={"bot": bot}
     )
     
-    # 07:00 dagi xayrli tong AI posti
-    scheduler.add_job(send_morning_greeting, trigger="cron", hour=7, minute=0, kwargs={"bot": bot})
+    # 2. 07:00 da uyg'onganda tunda yig'ilgan postlarni yoki xayrli tong AI posti joylaydi
+    scheduler.add_job(process_queue_and_post, trigger="cron", hour=7, minute=0, kwargs={"bot": bot})
     
-    # Odamlar passiv vaqtida, eng ko'p o'qiladigan Prime-Time vaqtlardagi rejali nashr (15 ta)
+    # 3. Kunduzi 60 - 90 minut oralig'ida avtomatik navbatdan post (yoki Livehack) chiqarish jadvali
+    # Soat 08:15, 09:30, 10:45, 12:00, 13:15, 14:30, 15:45, 17:00, 18:15, 19:30, 20:45, 22:00
     post_times = [
-        (8, 15), (9, 30), (11, 0), (12, 30), 
-        (13, 15), (14, 0), (15, 30), (17, 0), 
-        (18, 0), (19, 0), (20, 0), (20, 45), 
-        (21, 30), (22, 15), (23, 15)
+        (8, 15), (9, 30), (10, 45), (12, 0), 
+        (13, 15), (14, 30), (15, 45), (17, 0), 
+        (18, 15), (19, 30), (20, 45), (22, 0)
     ]
     for h, m in post_times:
         scheduler.add_job(process_queue_and_post, trigger="cron", hour=h, minute=m, kwargs={"bot": bot})
