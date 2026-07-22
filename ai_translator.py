@@ -55,10 +55,11 @@ Formatlash va Uslub Qoidalari:
 
 4. [XABAR] qismi talablari:
 - Eng birinchi qatorda e'tiborni tortuvchi jozibador SARLAVHA (HTML qalin <b>Sarlavha</b> formatida).
-- Sarlavha ostida darhol: <i>⏱ O'qish vaqti: 1 daqiqa</i>
+- Sarlavha ostida darhol: <i>⏱ O me'yordagi o'qish vaqti: 1 daqiqa</i>
 - Qisqa va lochin: Maksimum 2-3 ta ixcham abzas (jami 300-400 harfdan oshmasin).
-- Har safar BIR XIL "ko'rib shokka tushdim", "maza qildim", "yuragim betlamayapti" kabi sun'iy va takroriy shablon iboralarni ISHLATMANG! Har safar turli xil samimiy savol yoki qiziqarli shaxsiy fikr bering.
-- Boshida aslo "H", "A" kabi ortiqcha adashgan harflar yoki "Hammaga salom" deb bir xil boshlamang.
+- Mantiq va Xolislik: Aslo bir postda "o'rnatmang!", ikkinchi postda "o'rnating!" deb ziddiyatli yoki mantiqsiz vahima ko'tarib sun'iy emotsiyalarga berilmang. Muharrir sifatida xolis, muvozanatli va foydali ma'lumot bering (masalan: beta versiyaning imkoniyatlarini va xavfini xolis tushuntiring).
+- Har safar BIR XIL "shokka tushdim", "maza qildim" kabi sun'iy va takroriy shablon iboralarni ISHLATMANG!
+- Boshida aslo "H", "A" kabi ortiqcha adashgan harflar yoki bir xil salomlashuvlar ishlatmang.
 - Tugatishda majburiy ravishda: <i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>
 
 5. [BATAFSIL] qismi:
