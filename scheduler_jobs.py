@@ -5,14 +5,19 @@ import scraper
 import ai_translator
 from telegraph_api import create_telegraph_page
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import TARGET_CHANNEL_ID, CHANNEL_LINK, ADMIN_ID
 from datetime import datetime
+import pytz
 
 scheduler = BackgroundScheduler(timezone='Asia/Tashkent')
 
+def get_tashkent_now():
+    """O'zbekiston (Toshkent) vaqti bilan hozirgi vaqtni qaytaradi."""
+    tz = pytz.timezone('Asia/Tashkent')
+    return datetime.now(tz)
+
 def is_nighttime():
     """Toshkent vaqti bo'yicha 23:00 va 07:00 oralig'i (Tungi sukunat)."""
-    now = datetime.now()
+    now = get_tashkent_now()
     return now.hour >= 23 or now.hour < 7
 
 def fetch_and_queue_posts(bot=None, force=False):
@@ -25,7 +30,7 @@ def fetch_and_queue_posts(bot=None, force=False):
     donor = db.get_donor_url()
     last_id = db.get_last_id()
     
-    print(f"[{datetime.now()}] Skraping kuting... ({donor})")
+    print(f"[{get_tashkent_now().strftime('%Y-%m-%d %H:%M:%S')}] Skraping kuting... ({donor})")
     try:
         all_posts = scraper.scrape_telegram_channel(donor, last_id)
     except Exception as e:

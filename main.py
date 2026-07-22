@@ -52,10 +52,12 @@ def cmd_status(message):
     is_night = scheduler_jobs.is_nighttime()
     mode_str = "🌙 Tungi sukunat (23:00 - 07:00)" if is_night else "☀️ Kunduzgi aktiv (07:00 - 23:00)"
     ai_model = ai_translator.get_working_model()
+    tashkent_now_str = scheduler_jobs.get_tashkent_now().strftime("%Y-%m-%d %H:%M:%S")
     
     text = (
         "📊 **BOT NIZOMI VA LIVE HOLATI:**\n\n"
         f"🤖 **Bot holati:** 🟢 FAOL (Online)\n"
+        f"🇺🇿 **O'zbekiston (Toshkent) vaqti:** `{tashkent_now_str}`\n"
         f"☀️ **Hozirgi Rejim:** {mode_str}\n\n"
         f"🎯 **Donor RSS Manba:** `{donor}`\n"
         f"📦 **Navbatdagi postlar:** {q_count} ta\n"
