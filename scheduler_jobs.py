@@ -91,10 +91,35 @@ def send_morning_greeting(bot: telebot.TeleBot):
             markup.add(InlineKeyboardButton("👉 Batafsil o'qish", url=telegraph_url))
             
     try:
-        bot.send_message(TARGET_CHANNEL_ID, main_post, parse_mode="HTML", reply_markup=markup)
+        send_post_to_channel(bot, TARGET_CHANNEL_ID, main_post, markup=markup)
         print("✅ Tonggi salomlashuv post kanalga ketdi!")
     except Exception as e:
         print(f"Tonggi post jo'natish xatosi: {e}")
+
+def send_post_to_channel(bot: telebot.TeleBot, channel_id, main_post, video_url=None, image_url=None, markup=None):
+    """
+    Postni Telegram kanalga xavfsiz yuboradi.
+    Video/Rasm URL telegram tomonidan rad etilsa (400 Bad Request: wrong type of web page content)
+    yoki HTML formatlashda xato bo'lsa, avtomatik ravishda navbatdagi xavfsiz variantga fallback qiladi.
+    """
+    if video_url:
+        try:
+            return bot.send_video(channel_id, video_url, caption=main_post, parse_mode="HTML", reply_markup=markup)
+        except Exception as e:
+            print(f"Video jo'natish feyl bo'ldi ({e}), foto/matnga o'tilmoqda...")
+
+    if image_url:
+        try:
+            return bot.send_photo(channel_id, image_url, caption=main_post, parse_mode="HTML", reply_markup=markup)
+        except Exception as e:
+            print(f"Rasm jo'natish feyl bo'ldi ({e}), oddiy matnga o'tilmoqda...")
+
+    try:
+        return bot.send_message(channel_id, main_post, parse_mode="HTML", reply_markup=markup)
+    except Exception as e:
+        print(f"HTML parse mode xatosi ({e}), oddiy tekis matnda jo'natilmoqda...")
+        clean_text = main_post.replace('<b>', '').replace('</b>', '').replace('<i>', '').replace('</i>', '')
+        return bot.send_message(channel_id, clean_text, reply_markup=markup)
 
 def process_queue_and_post(bot: telebot.TeleBot):
     """
@@ -145,13 +170,7 @@ def process_queue_and_post(bot: telebot.TeleBot):
                 markup = InlineKeyboardMarkup()
                 markup.add(InlineKeyboardButton("👉 Batafsil o'qish", url=telegraph_url))
         
-        sent_msg = None
-        if video_url:
-            bot.send_video(TARGET_CHANNEL_ID, video_url, caption=main_post, parse_mode="HTML", reply_markup=markup)
-        elif image_url:
-            bot.send_photo(TARGET_CHANNEL_ID, image_url, caption=main_post, parse_mode="HTML", reply_markup=markup)
-        else:
-            bot.send_message(TARGET_CHANNEL_ID, main_post, parse_mode="HTML", reply_markup=markup)
+        send_post_to_channel(bot, TARGET_CHANNEL_ID, main_post, video_url=video_url, image_url=image_url, markup=markup)
             
         print(f"✅ Kanalga POST yuborildi! (Qoldi: {db.get_queued_count()})")
     except Exception as e:

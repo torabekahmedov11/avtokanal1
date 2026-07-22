@@ -1,6 +1,16 @@
 import feedparser
 from bs4 import BeautifulSoup
 
+def is_valid_image_url(url):
+    if not url or not isinstance(url, str):
+        return False
+    url_lower = url.lower().strip()
+    if not (url_lower.startswith('http://') or url_lower.startswith('https://')):
+        return False
+    if url_lower.startswith('data:') or '.svg' in url_lower:
+        return False
+    return True
+
 def scrape_telegram_channel(rss_url, last_id):
     """
     Saytning RSS Feed zanjiridan postlarni o'qiydi.
@@ -56,6 +66,9 @@ def scrape_telegram_channel(rss_url, last_id):
                     if 'image' in getattr(enc, 'type', '') or 'image' in enc.get('type', ''):
                         image_url = enc.get('href')
                         break
+        
+        if not is_valid_image_url(image_url):
+            image_url = None
         
         # Matnni tozalash (yangi qatorlarni saqlab qolish yaxshi)
         clean_summary = soup.get_text('\n', strip=True)
