@@ -5,6 +5,7 @@ import scraper
 import ai_translator
 from telegraph_api import create_telegraph_page
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from config import TARGET_CHANNEL_ID, CHANNEL_LINK, ADMIN_ID
 from datetime import datetime
 import pytz
 
