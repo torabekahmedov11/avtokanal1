@@ -13,6 +13,7 @@ scheduler = BackgroundScheduler(timezone='Asia/Tashkent')
 def fetch_and_queue_posts(bot=None):
     """
     Saytdan yangi postlarni topadi va navbatga qo'shadi.
+    Eski postlar hech qachon qayta yuborilmaydi (seen_ids tekshiruvi orqali).
     """
     donor = db.get_donor_url()
     last_id = db.get_last_id()
@@ -31,31 +32,37 @@ def fetch_and_queue_posts(bot=None):
     if not all_posts:
         return
         
-    new_posts = []
-    start_index = 0
-    if last_id:
-        for idx, post in enumerate(all_posts):
-            if post["id"] == last_id:
-                start_index = idx + 1
-                break
-        else:
-            # Agar last_id topilmasa (masalan yangi sayt), faqat oxirgi 3 tasini olamiz
-            start_index = max(0, len(all_posts) - 3)
-            
-    for i in range(start_index, len(all_posts)):
-        if not db.is_post_seen(all_posts[i]["id"]):
-            new_posts.append(all_posts[i])
-        
-    highest_id = last_id
-    for post in new_posts:
-        highest_id = post["id"] # xronologik
-        if post["text"]:
+    # Birinchi marta ishga tushganda barcha eski postlarni "ko'rilgan" deb belgilaymiz,
+    # faqat eng oxirgi 1 ta postni navbatga olamiz (eski 70 ta post tiqilib qolmasligi uchun)
+    if not last_id:
+        print("Birinchi skraping: barcha eski postlar bazada ko'rilgan deb belgilandi.")
+        all_ids = [p["id"] for p in all_posts]
+        db.mark_multiple_as_seen(all_ids)
+        latest_post = all_posts[-1]
+        if latest_post.get("text"):
+            db.add_queued_post(latest_post)
+            db.set_last_id(latest_post["id"])
+            print(f"Birinchi yangi post navbatga qo'shildi: {latest_post['id']}")
+        return
+
+    # Keyingi barcha skrapinglarda: faqat ilgari KO'RILMAGAN yangi postlarni olamiz
+    new_count = 0
+    for post in all_posts:
+        pid = post.get("id")
+        if not pid or db.is_post_seen(pid):
+            continue
+
+        # Postni darhol ko'rilgan deb belgilaymiz
+        db.mark_as_seen(pid)
+        db.set_last_id(pid)
+
+        if post.get("text"):
             db.add_queued_post(post)
-            db.set_last_id(highest_id) # Set seen as soon as queued
-            print(f"Yangi post navbatga tushdi: {post['id']}")
-            
-    if new_posts:
-        db.set_last_id(highest_id)
+            new_count += 1
+            print(f"Yangi post navbatga tushdi: {pid}")
+
+    if new_count > 0:
+        print(f"Jami {new_count} ta yangi post navbatga joylandi.")
 
 def parse_telegraph_response(text):
     xabar = text

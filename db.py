@@ -85,10 +85,39 @@ def set_last_id(msg_id):
             data["seen_ids"] = []
         if msg_id and msg_id not in data["seen_ids"]:
             data["seen_ids"].append(msg_id)
-            # 50 tadan oshib ketmasligi uchun
-            if len(data["seen_ids"]) > 50:
-                data["seen_ids"] = data["seen_ids"][-50:]
+            if len(data["seen_ids"]) > 2000:
+                data["seen_ids"] = data["seen_ids"][-2000:]
         _save_unlocked(data)
+
+def mark_as_seen(post_id):
+    if not post_id:
+        return
+    with _db_lock:
+        data = _load_unlocked()
+        if "seen_ids" not in data:
+            data["seen_ids"] = []
+        if post_id not in data["seen_ids"]:
+            data["seen_ids"].append(post_id)
+            if len(data["seen_ids"]) > 2000:
+                data["seen_ids"] = data["seen_ids"][-2000:]
+            _save_unlocked(data)
+
+def mark_multiple_as_seen(post_ids):
+    if not post_ids:
+        return
+    with _db_lock:
+        data = _load_unlocked()
+        if "seen_ids" not in data:
+            data["seen_ids"] = []
+        changed = False
+        for pid in post_ids:
+            if pid and pid not in data["seen_ids"]:
+                data["seen_ids"].append(pid)
+                changed = True
+        if changed:
+            if len(data["seen_ids"]) > 2000:
+                data["seen_ids"] = data["seen_ids"][-2000:]
+            _save_unlocked(data)
 
 def is_post_seen(post_id):
     with _db_lock:
@@ -99,6 +128,12 @@ def add_queued_post(post_data):
     with _db_lock:
         data = _load_unlocked()
         data["queued_posts"].append(post_data)
+        if "seen_ids" not in data:
+            data["seen_ids"] = []
+        if post_data.get("id") and post_data["id"] not in data["seen_ids"]:
+            data["seen_ids"].append(post_data["id"])
+            if len(data["seen_ids"]) > 2000:
+                data["seen_ids"] = data["seen_ids"][-2000:]
         _save_unlocked(data)
 
 def requeue_post(post_data):

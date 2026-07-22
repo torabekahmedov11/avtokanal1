@@ -11,6 +11,65 @@ def is_valid_image_url(url):
         return False
     return True
 
+def extract_video_url(soup, entry):
+    video_url = None
+    
+    # 1. Media content yoki enclosures
+    if 'media_content' in entry:
+        for media in entry.media_content:
+            m_type = media.get('type', '')
+            m_url = media.get('url', '')
+            if 'video' in m_type or m_url.lower().endswith(('.mp4', '.webm', '.mov', '.m4v')):
+                video_url = m_url
+                break
+
+    if not video_url and getattr(entry, 'enclosures', None):
+        for enc in entry.enclosures:
+            enc_type = getattr(enc, 'type', '') or enc.get('type', '')
+            enc_href = getattr(enc, 'href', '') or enc.get('href', '')
+            if 'video' in enc_type or enc_href.lower().endswith(('.mp4', '.webm', '.mov', '.m4v')):
+                video_url = enc_href
+                break
+
+    # 2. HTML video va source teglari
+    if not video_url:
+        video_tag = soup.find('video')
+        if video_tag:
+            if video_tag.get('src'):
+                video_url = video_tag.get('src')
+            else:
+                source_tag = video_tag.find('source')
+                if source_tag and source_tag.get('src'):
+                    video_url = source_tag.get('src')
+
+    # 3. HTML iframe teglari (YouTube, Vimeo yoki mp4)
+    if not video_url:
+        for iframe in soup.find_all('iframe'):
+            src = iframe.get('src', '')
+            if not src:
+                continue
+            if src.startswith('//'):
+                src = 'https:' + src
+            if any(k in src.lower() for k in ['youtube.com', 'youtu.be', 'vimeo.com']) or src.lower().endswith(('.mp4', '.webm', '.mov')):
+                video_url = src
+                break
+
+    # 4. Direct video havolalari <a> teglarida
+    if not video_url:
+        for a_tag in soup.find_all('a', href=True):
+            href = a_tag['href']
+            if href.lower().endswith(('.mp4', '.webm', '.mov', '.m4v')):
+                video_url = href
+                break
+
+    if video_url and video_url.startswith('//'):
+        video_url = 'https:' + video_url
+
+    if video_url and (video_url.startswith('http://') or video_url.startswith('https://')):
+        return video_url
+        
+    return None
+
 def scrape_telegram_channel(rss_url, last_id):
     """
     Saytning RSS Feed zanjiridan postlarni o'qiydi.
@@ -33,13 +92,6 @@ def scrape_telegram_channel(rss_url, last_id):
         if not post_id:
             continue
             
-        # last_id check (string format)
-        # Assuming we just need to avoid adding already fetched. Unfortunately string comparison
-        # is tricky, so we will handle "seen" IDs differently. 
-        # But for simplification: if we hit the last_id while iterating (from oldest to newest), 
-        # we consider everything after it as new.
-        
-        # We will retrieve title + summary text
         text = entry.get('title', '') + "\n\n"
         
         # Summary ichida HTML bo'lishi mumkin, ba'zan esa 'content' ichida bo'ladi
@@ -69,6 +121,9 @@ def scrape_telegram_channel(rss_url, last_id):
         
         if not is_valid_image_url(image_url):
             image_url = None
+
+        # Video topish (agar bo'lsa)
+        video_url = extract_video_url(soup, entry)
         
         # Matnni tozalash (yangi qatorlarni saqlab qolish yaxshi)
         clean_summary = soup.get_text('\n', strip=True)
@@ -95,7 +150,7 @@ def scrape_telegram_channel(rss_url, last_id):
             "id": post_id,
             "text": text,
             "image": image_url,
-            "video": None # RSS dan video olish sal qiyinroq, odatda rasm bo'ladi
+            "video": video_url
         })
         
     return new_posts
