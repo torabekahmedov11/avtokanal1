@@ -136,6 +136,9 @@ def scrape_telegram_channel(rss_url, last_id):
                 
         if not is_valid_image_url(image_url):
             image_url = None
+        else:
+            import re
+            image_url = re.sub(r'-\d+x\d+(\.\w+)$', r'\1', image_url)
 
         # Video topish (agar bo'lsa)
         video_url = extract_video_url(soup, entry)
