@@ -63,8 +63,14 @@ def _save_unlocked(data):
 
 def get_donor_url():
     with _db_lock:
-        url = _load_unlocked().get("donor_url", "https://fs.blog/feed/")
+        data = _load_unlocked()
+        url = data.get("donor_url", "https://fs.blog/feed/")
         if "lifehacker.com" in url:
+            # Migration: eski sayt bo'lsa navbatni tozalab, bazaga saqlab yuboramiz
+            data["donor_url"] = "https://fs.blog/feed/"
+            data["queued_posts"] = []
+            data["last_scraped_id"] = ""
+            _save_unlocked(data)
             url = "https://fs.blog/feed/"
         return url
 
