@@ -168,6 +168,7 @@ def process_queue_and_post(bot: telebot.TeleBot):
     3. Navbatda post ham bo'lmasa: AI Livehack yaratib joylaydi.
     """
     if not TARGET_CHANNEL_ID:
+        print("⚠️ TARGET_CHANNEL_ID sozlanmagan! Post kanalga jo'natilmaydi.")
         return
 
     if is_nighttime():

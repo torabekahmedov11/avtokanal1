@@ -30,7 +30,7 @@ def init_db():
                 print(f"Cloud dan tiklashda xato yoki xotira yo'q: {e}")
                 
             default_data = {
-                "donor_url": "https://lifehacker.com/rss",
+                "donor_url": "https://fs.blog/feed/",
                 "last_scraped_id": "",
                 "seen_ids": [],
                 "queued_posts": []
@@ -44,7 +44,7 @@ def init_db():
 
 def _load_unlocked():
     if not os.path.exists(DB_FILE):
-        return {"donor_url": "https://lifehacker.com/rss", "last_scraped_id": "", "seen_ids": [], "queued_posts": []}
+        return {"donor_url": "https://fs.blog/feed/", "last_scraped_id": "", "seen_ids": [], "queued_posts": []}
     with open(DB_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -63,7 +63,16 @@ def _save_unlocked(data):
 
 def get_donor_url():
     with _db_lock:
-        return _load_unlocked().get("donor_url", "https://lifehacker.com/rss")
+        data = _load_unlocked()
+        url = data.get("donor_url", "https://fs.blog/feed/")
+        if "lifehacker.com" in url:
+            # Migration: eski sayt bo'lsa navbatni tozalab, bazaga saqlab yuboramiz
+            data["donor_url"] = "https://fs.blog/feed/"
+            data["queued_posts"] = []
+            data["last_scraped_id"] = ""
+            _save_unlocked(data)
+            url = "https://fs.blog/feed/"
+        return url
 
 def set_donor_url(url):
     with _db_lock:

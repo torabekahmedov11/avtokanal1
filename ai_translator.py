@@ -1,8 +1,9 @@
-import google.generativeai as genai
+from google import genai
 from config import GEMINI_API_KEY
 
+client = None
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
 _working_model_name = None
 
@@ -21,8 +22,9 @@ def get_working_model():
     # Eng zo'ri: haqiqatda ishlayotganini jonli test qilib izlash
     for cand in candidates:
         try:
-            m = genai.GenerativeModel(cand)
-            resp = m.generate_content("ping", request_options={"timeout": 5.0})
+            if not client:
+                break
+            resp = client.models.generate_content(model=cand, contents="ping")
             if resp.text:
                 print(f"JONLI SINOVDA ISHLADI: {cand}")
                 _working_model_name = cand
@@ -71,8 +73,9 @@ Asl matn:
 {text}
 """
     try:
-        model = genai.GenerativeModel(get_working_model())
-        response = model.generate_content(prompt)
+        if not client:
+            return "AI_ERROR: Client is not initialized."
+        response = client.models.generate_content(model=get_working_model(), contents=prompt)
         try:
             translated = response.text.strip()
             # Boshdagi adashgan belgi yoki harflarni va o'qish vaqti matnini tozalash
@@ -99,15 +102,15 @@ def generate_morning_lifehack():
         return None
     
     prompt = """
-    Siz Telegramdagi "Avtokanal" (yoki foydali layfxaklar) kanalining samimiy va do'stona adminisiz. Obunachilaringizga yaxshi kayfiyat ulashish obro'yingiz uchun juda muhim.
+    Siz Telegramdagi "Avtokanal" (yoki foydali layfxaklar) kanalining professional adminisiz.
     
     Sizning vazifangiz:
     Bitta bomba, sinalgan haqiqiy "layfxak" (hayotni yengillashtiruvchi maslahat yoxud maxfiy funksiya) o'ylab topish. Bu tarjima emas, o'zingiz bilgan mukammal texnologik fakt bo'lsin.
     
     Format:
-    1. Albatta qiziqarli usulda Salomlashish bilan boshlang (Masalan: "Xayrli tong, qadrdonlar!", "Yangi kun muborak, texnomanlar!" h.k).
+    1. Hech qanday "Salom", "Xayrli tong" kabi so'zlarni ishlatmang. To'g'ridan to'g'ri layfxakdan boshlang!
     2. Yana o'sha qoidalarga muvofiq, [XABAR] va [BATAFSIL] degan ikki qismga bo'ling.
-    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida do'stona gap jumlasi, sirlarga boy bitta fakt va shaxsiy fikr yozing. Matn 600 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. O'qish vaqti yozuvini ISHLATMANG! Tugatishda "<i>(Barchasini bilish yoxud o'rnatish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
+    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida sirlarga boy bitta fakt va shaxsiy fikr yozing. Matn 600 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. O'qish vaqti yozuvini ISHLATMANG! Tugatishda "<i>(Barchasini bilish yoxud o'rnatish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
     4. [BATAFSIL] qismiga o'sha layfxakning qadamma qadam qanday yasalishini tushuntiring.
     5. Format uchun faqat <b> va <i> html ishlating. Hech qanday yulduzchalar yo'q.
     
@@ -118,8 +121,9 @@ def generate_morning_lifehack():
     ...
     """
     try:
-        model = genai.GenerativeModel(get_working_model())
-        response = model.generate_content(prompt)
+        if not client:
+            return None
+        response = client.models.generate_content(model=get_working_model(), contents=prompt)
         text = response.text.strip().replace('**', '').replace('*', '')
         # O'qish vaqti yozuvlarini tozalash
         lines = [l for l in text.split('\n') if "o'qish vaqti" not in l.lower() and "oqish vaqti" not in l.lower()]

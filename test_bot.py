@@ -31,8 +31,8 @@ url = telegraph_api.create_telegraph_page("Test", "<p>Hello</p>")
 print(f"Telegraph URL: {url}")
 
 print("\n--- 5. TELEGRAM BOT TESTING ---")
-bot = telebot.TeleBot(BOT_TOKEN)
 try:
+    bot = telebot.TeleBot(BOT_TOKEN)
     me = bot.get_me()
     print(f"Bot connected: @{me.username}")
     if TARGET_CHANNEL_ID:
