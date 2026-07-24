@@ -1,8 +1,9 @@
-import google.generativeai as genai
+from google import genai
 from config import GEMINI_API_KEY
 
+client = None
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
 _working_model_name = None
 
@@ -21,8 +22,9 @@ def get_working_model():
     # Eng zo'ri: haqiqatda ishlayotganini jonli test qilib izlash
     for cand in candidates:
         try:
-            m = genai.GenerativeModel(cand)
-            resp = m.generate_content("ping", request_options={"timeout": 5.0})
+            if not client:
+                break
+            resp = client.models.generate_content(model=cand, contents="ping")
             if resp.text:
                 print(f"JONLI SINOVDA ISHLADI: {cand}")
                 _working_model_name = cand
@@ -71,8 +73,9 @@ Asl matn:
 {text}
 """
     try:
-        model = genai.GenerativeModel(get_working_model())
-        response = model.generate_content(prompt)
+        if not client:
+            return "AI_ERROR: Client is not initialized."
+        response = client.models.generate_content(model=get_working_model(), contents=prompt)
         try:
             translated = response.text.strip()
             # Boshdagi adashgan belgi yoki harflarni va o'qish vaqti matnini tozalash
@@ -118,8 +121,9 @@ def generate_morning_lifehack():
     ...
     """
     try:
-        model = genai.GenerativeModel(get_working_model())
-        response = model.generate_content(prompt)
+        if not client:
+            return None
+        response = client.models.generate_content(model=get_working_model(), contents=prompt)
         text = response.text.strip().replace('**', '').replace('*', '')
         # O'qish vaqti yozuvlarini tozalash
         lines = [l for l in text.split('\n') if "o'qish vaqti" not in l.lower() and "oqish vaqti" not in l.lower()]
