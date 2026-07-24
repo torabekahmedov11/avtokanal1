@@ -102,15 +102,15 @@ def generate_morning_lifehack():
         return None
     
     prompt = """
-    Siz Telegramdagi "Avtokanal" (yoki foydali layfxaklar) kanalining samimiy va do'stona adminisiz. Obunachilaringizga yaxshi kayfiyat ulashish obro'yingiz uchun juda muhim.
+    Siz Telegramdagi "Avtokanal" (yoki foydali layfxaklar) kanalining professional adminisiz.
     
     Sizning vazifangiz:
     Bitta bomba, sinalgan haqiqiy "layfxak" (hayotni yengillashtiruvchi maslahat yoxud maxfiy funksiya) o'ylab topish. Bu tarjima emas, o'zingiz bilgan mukammal texnologik fakt bo'lsin.
     
     Format:
-    1. Albatta qiziqarli usulda Salomlashish bilan boshlang (Masalan: "Xayrli tong, qadrdonlar!", "Yangi kun muborak, texnomanlar!" h.k).
+    1. Hech qanday "Salom", "Xayrli tong" kabi so'zlarni ishlatmang. To'g'ridan to'g'ri layfxakdan boshlang!
     2. Yana o'sha qoidalarga muvofiq, [XABAR] va [BATAFSIL] degan ikki qismga bo'ling.
-    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida do'stona gap jumlasi, sirlarga boy bitta fakt va shaxsiy fikr yozing. Matn 600 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. O'qish vaqti yozuvini ISHLATMANG! Tugatishda "<i>(Barchasini bilish yoxud o'rnatish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
+    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida sirlarga boy bitta fakt va shaxsiy fikr yozing. Matn 600 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. O'qish vaqti yozuvini ISHLATMANG! Tugatishda "<i>(Barchasini bilish yoxud o'rnatish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
     4. [BATAFSIL] qismiga o'sha layfxakning qadamma qadam qanday yasalishini tushuntiring.
     5. Format uchun faqat <b> va <i> html ishlating. Hech qanday yulduzchalar yo'q.
     

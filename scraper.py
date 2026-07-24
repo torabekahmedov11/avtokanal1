@@ -122,6 +122,21 @@ def scrape_telegram_channel(rss_url, last_id):
         if not is_valid_image_url(image_url):
             image_url = None
 
+        if not image_url and post_id.startswith('http'):
+            try:
+                import requests
+                r = requests.get(post_id, timeout=5)
+                if r.status_code == 200:
+                    page_soup = BeautifulSoup(r.content, 'html.parser')
+                    og_image = page_soup.find('meta', property='og:image')
+                    if og_image and og_image.get('content'):
+                        image_url = og_image['content']
+            except Exception:
+                pass
+                
+        if not is_valid_image_url(image_url):
+            image_url = None
+
         # Video topish (agar bo'lsa)
         video_url = extract_video_url(soup, entry)
         
