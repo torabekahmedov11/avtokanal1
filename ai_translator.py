@@ -1,133 +1,77 @@
-from google import genai
-from config import GEMINI_API_KEY
+import requests
+import re
+from config import OPENROUTER_API_KEY
 
-client = None
-if GEMINI_API_KEY:
-    client = genai.Client(api_key=GEMINI_API_KEY)
+SYSTEM_PROMPT = """Siz Telegramdagi eng mashhur va jozibali texnologik va hayotiy yangiliklar kanalining professional va o'tkir muharririsiz. Siz matnlarni mutlaqo insoniy til samimiyatida o'zbek tiliga jozibador tarjima qilasiz.
 
-_working_model_name = None
+Qoidalaringiz:
+1. Agar matnda alkogol, qimor, 18+ behayo mazmun, firibgarlik bo'lsa, MUTLAQO TARJIMA QILMANG! Faqat "[FILTERED]" deb qaytaring.
+2. Eng birinchi qatorda e'tiborni tortuvchi jozibador SARLAVHA (HTML qalin <b>Sarlavha</b> formatida).
+3. Matn telegram posti ko'rinishida ixcham, o'qishga qulay va insoniy tilda ravon bo'lsin. Robot tilida quruq tarjima qilmang!
+4. Format uchun faqat <b> va <i> HTML teglardan foydalaning. Yulduzcha (*) yoki Markdown umuman ishlatmang.
+5. Post oxirida: <i>(Barchasini bilish uchun quyidagi manbani ko'ring 👇)</i>"""
 
-def get_working_model():
-    global _working_model_name
-    if _working_model_name:
-        return _working_model_name
+OPENROUTER_MODELS = [
+    "openrouter/free",
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3.5-lightning:free",
+    "liquid/lfm-2.5-2.6b:free"
+]
 
-    candidates = [
-        'gemini-flash-lite-latest',
-        'gemini-2.5-flash',
-        'gemini-2.0-flash-lite',
-        'gemini-pro-latest'
-    ]
-    
-    # Eng zo'ri: haqiqatda ishlayotganini jonli test qilib izlash
-    for cand in candidates:
+def translate_with_openrouter(text):
+    if not OPENROUTER_API_KEY:
+        print("⚠️ OPENROUTER_API_KEY sozlanmagan! .env fayliga kalitni kiriting.")
+        return None
+
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://telegram.org",
+        "X-Title": "Telegram Auto Channel Bot"
+    }
+
+    for model in OPENROUTER_MODELS:
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": text}
+            ],
+            "temperature": 0.5
+        }
         try:
-            if not client:
-                break
-            resp = client.models.generate_content(model=cand, contents="ping")
-            if resp.text:
-                print(f"JONLI SINOVDA ISHLADI: {cand}")
-                _working_model_name = cand
-                return cand
+            print(f"OpenRouter ({model}) orqali tarjima so'rovi yuborilmoqda...")
+            r = requests.post(url, headers=headers, json=payload, timeout=20)
+            if r.status_code == 200:
+                res = r.json()
+                if 'choices' in res and len(res['choices']) > 0:
+                    content = res['choices'][0]['message']['content'].strip()
+                    content = content.replace('**', '').replace('*', '')
+                    print(f"✅ OpenRouter AI ({model}) tarjimasi muvaffaqiyatli!")
+                    return content
+            else:
+                print(f"OpenRouter ({model}) javob kodi: {r.status_code} - {r.text[:150]}")
         except Exception as e:
-            print(f"{cand} sinovda ishlamadi: {e}")
-            continue
-            
-    # Agar hech biri ishlamasa eng standardini qaytaramiz baribir
-    return 'gemini-flash-lite-latest'
+            print(f"OpenRouter ({model}) tarjima xatosi: {e}")
+
+    return None
 
 def translate_and_spice_up(text):
-    if not GEMINI_API_KEY:
-        return f"AI_ERROR: Gemini API kaliti yo'q. Asl matn:\n\n{text}"
-    
-    prompt = f"""
-Siz Telegramdagi eng mashhur va qiziqarli texnologik va hayotiy loyihalar kanalining professional va o'tkir muharririsiz. Siz matnlarni mutlaqo insoniy til samimiyatida, har gal har xil jonli iboralardan foydalanib yozasiz.
+    if not text or not text.strip():
+        return ""
 
-Qat'iy Senzura Qoidalari:
-1. Agar matnda alkogol, qimor, 18+ behayo mazmun, firibgarlik yoki islom diniga mutlaqo ziddiyatli g'oyalar bo'lsa, MUTLAQO TARJIMA QILMANG! Faqat "[FILTERED]" deb qaytaring.
-2. Reklamalar va faqat mahalliy chet el g'iybatlarini olib tashlang ("[FILTERED]"). Faqat foydali texnologiya, gadjet va hayotiy maslahatlarni tayyorlang.
-
-Formatlash va Uslub Qoidalari:
-3. Matnni MAJBURAN 2 qismga ajrating:
-[XABAR]
-(bu yerda Telegram postining qisqa, sarlavhali ko'rinishi)
-
-[BATAFSIL]
-(bu yerda esa Telegraph uchun maqolaning to'liq sirlari va qadamma-qadam qo'llanmasi)
-
-4. [XABAR] qismi talablari:
-- Eng birinchi qatorda e'tiborni tortuvchi jozibador SARLAVHA (HTML qalin <b>Sarlavha</b> formatida).
-- Qisqa va lochin: Maksimum 2-3 ta ixcham abzas (jami 300-400 harfdan oshmasin).
-- Mantiq va Xolislik: Aslo bir postda "o'rnatmang!", ikkinchi postda "o'rnating!" deb ziddiyatli yoki mantiqsiz vahima ko'tarib sun'iy emotsiyalarga berilmang. Muharrir sifatida xolis, muvozanatli va foydali ma'lumot bering (masalan: beta versiyaning imkoniyatlarini va xavfini xolis tushuntiring).
-- Har safar BIR XIL "shokka tushdim", "maza qildim" kabi sun'iy va takroriy shablon iboralarni ISHLATMANG!
-- Boshida aslo "H", "A" kabi ortiqcha adashgan harflar yoki bir xil salomlashuvlar ishlatmang.
-- O'qish vaqti haqidagi yozuvlarni ISHLATMANG!
-- Tugatishda majburiy ravishda: <i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>
-
-5. [BATAFSIL] qismi:
-- Telegraph sahifasi uchun qadamma-qadam ko'rsatmalar va to'liq ma'lumotlar.
-
-6. Format uchun faqat <b> va <i> html teglardan foydalaning. Yulduzcha (*) yoki Markdown umuman ishlatmang.
-
-Asl matn:
-{text}
-"""
-    try:
-        if not client:
-            return "AI_ERROR: Client is not initialized."
-        response = client.models.generate_content(model=get_working_model(), contents=prompt)
-        try:
-            translated = response.text.strip()
-            # Boshdagi adashgan belgi yoki harflarni va o'qish vaqti matnini tozalash
-            lines = translated.split('\n')
-            cleaned_lines = []
-            for line in lines:
-                l_str = line.strip()
-                if len(l_str) == 1 and l_str.isalpha():
-                    continue
-                if "o'qish vaqti" in l_str.lower() or "oqish vaqti" in l_str.lower():
-                    continue
-                cleaned_lines.append(line)
-            return '\n'.join(cleaned_lines)
-        except ValueError:
-            print("Gemini API: Kontent AI xavfsizlik filtriga tushdi yoki ruxsat etilmadi.")
+    # Reklama filtri
+    ad_keywords = ['deal', 'sale', 'sponsor', 'promoted', 'amazon', 'aliexpress', 'discount', '% off', 'coupon', 'woot']
+    text_lower = text.lower()
+    for kw in ad_keywords:
+        if kw in text_lower:
             return "[FILTERED]"
-    except Exception as e:
-        print(f"Gemini API Error: {e}")
-        return None
 
-def generate_morning_lifehack():
-    """Tongi xayrli tong po'sti uchun manbasiz generatsiya (AI o'zi o'ylaydi)."""
-    if not GEMINI_API_KEY:
-        return None
-    
-    prompt = """
-    Siz Telegramdagi "Avtokanal" (yoki foydali layfxaklar) kanalining professional adminisiz.
-    
-    Sizning vazifangiz:
-    Bitta bomba, sinalgan haqiqiy "layfxak" (hayotni yengillashtiruvchi maslahat yoxud maxfiy funksiya) o'ylab topish. Bu tarjima emas, o'zingiz bilgan mukammal texnologik fakt bo'lsin.
-    
-    Format:
-    1. Hech qanday "Salom", "Xayrli tong" kabi so'zlarni ishlatmang. To'g'ridan to'g'ri layfxakdan boshlang!
-    2. Yana o'sha qoidalarga muvofiq, [XABAR] va [BATAFSIL] degan ikki qismga bo'ling.
-    3. [XABAR] qismining MAVZUSI qalin HTML (<b></b>) bo'lsin, davomida sirlarga boy bitta fakt va shaxsiy fikr yozing. Matn 600 belgidan oshmasin! Sirena(🚨) umuman ishlatmang. O'qish vaqti yozuvini ISHLATMANG! Tugatishda "<i>(Barchasini bilish yoxud o'rnatish uchun quyidagi tugmani bosing 👇)</i>" deb yozing.
-    4. [BATAFSIL] qismiga o'sha layfxakning qadamma qadam qanday yasalishini tushuntiring.
-    5. Format uchun faqat <b> va <i> html ishlating. Hech qanday yulduzchalar yo'q.
-    
-    Shablon:
-    [XABAR]
-    ...
-    [BATAFSIL]
-    ...
-    """
-    try:
-        if not client:
-            return None
-        response = client.models.generate_content(model=get_working_model(), contents=prompt)
-        text = response.text.strip().replace('**', '').replace('*', '')
-        # O'qish vaqti yozuvlarini tozalash
-        lines = [l for l in text.split('\n') if "o'qish vaqti" not in l.lower() and "oqish vaqti" not in l.lower()]
-        return '\n'.join(lines)
-    except Exception as e:
-        print(f"Ertalabki layfxak xatosi: {e}")
-        return None
+    # Faqat OpenRouter AI ishlatamiz
+    res = translate_with_openrouter(text)
+    if res:
+        return res
+
+    print("⚠️ OpenRouter AI javob bermadi yoki kalit yo'q.")
+    return None

@@ -1,174 +1,113 @@
-import feedparser
+import requests
 from bs4 import BeautifulSoup
+import re
 
-def is_valid_image_url(url):
-    if not url or not isinstance(url, str):
-        return False
-    url_lower = url.lower().strip()
-    if not (url_lower.startswith('http://') or url_lower.startswith('https://')):
-        return False
-    if url_lower.startswith('data:') or '.svg' in url_lower:
-        return False
-    return True
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+}
 
-def extract_video_url(soup, entry):
-    video_url = None
+def format_telegram_url(channel_url):
+    if not channel_url:
+        return "https://t.me/s/vibecoding_tg"
+    channel_url = channel_url.strip()
+    if channel_url.startswith("@"):
+        channel_url = channel_url[1:]
+    if channel_url.startswith("https://t.me/s/"):
+        return channel_url
+    if channel_url.startswith("https://t.me/"):
+        username = channel_url.split("https://t.me/")[1].split("/")[0]
+        return f"https://t.me/s/{username}"
+    if channel_url.startswith("t.me/s/"):
+        return f"https://{channel_url}"
+    if channel_url.startswith("t.me/"):
+        username = channel_url.split("t.me/")[1].split("/")[0]
+        return f"https://t.me/s/{username}"
+    if not channel_url.startswith("http://") and not channel_url.startswith("https://"):
+        return f"https://t.me/s/{channel_url}"
+    return channel_url
+
+def scrape_telegram_channel(rss_url, last_id=""):
+    """
+    Telegram kanalining web-preview (t.me/s/username) sahifasidan postlarni o'qiydi.
+    Matn, rasm, video, GIF va fayllarni (documents) ajratib oladi.
+    """
+    target_url = format_telegram_url(rss_url)
+    print(f"Scraping Telegram channel: {target_url}")
     
-    # 1. Media content yoki enclosures
-    if 'media_content' in entry:
-        for media in entry.media_content:
-            m_type = media.get('type', '')
-            m_url = media.get('url', '')
-            if 'video' in m_type or m_url.lower().endswith(('.mp4', '.webm', '.mov', '.m4v')):
-                video_url = m_url
-                break
-
-    if not video_url and getattr(entry, 'enclosures', None):
-        for enc in entry.enclosures:
-            enc_type = getattr(enc, 'type', '') or enc.get('type', '')
-            enc_href = getattr(enc, 'href', '') or enc.get('href', '')
-            if 'video' in enc_type or enc_href.lower().endswith(('.mp4', '.webm', '.mov', '.m4v')):
-                video_url = enc_href
-                break
-
-    # 2. HTML video va source teglari
-    if not video_url:
-        video_tag = soup.find('video')
-        if video_tag:
-            if video_tag.get('src'):
-                video_url = video_tag.get('src')
-            else:
-                source_tag = video_tag.find('source')
-                if source_tag and source_tag.get('src'):
-                    video_url = source_tag.get('src')
-
-    # 3. HTML iframe teglari (YouTube, Vimeo yoki mp4)
-    if not video_url:
-        for iframe in soup.find_all('iframe'):
-            src = iframe.get('src', '')
-            if not src:
-                continue
-            if src.startswith('//'):
-                src = 'https:' + src
-            if any(k in src.lower() for k in ['youtube.com', 'youtu.be', 'vimeo.com']) or src.lower().endswith(('.mp4', '.webm', '.mov')):
-                video_url = src
-                break
-
-    # 4. Direct video havolalari <a> teglarida
-    if not video_url:
-        for a_tag in soup.find_all('a', href=True):
-            href = a_tag['href']
-            if href.lower().endswith(('.mp4', '.webm', '.mov', '.m4v')):
-                video_url = href
-                break
-
-    if video_url and video_url.startswith('//'):
-        video_url = 'https:' + video_url
-
-    if video_url and (video_url.startswith('http://') or video_url.startswith('https://')):
-        return video_url
-        
-    return None
-
-def scrape_telegram_channel(rss_url, last_id):
-    """
-    Saytning RSS Feed zanjiridan postlarni o'qiydi.
-    (Funksiya formati eski nomida qoldirildi, barcha qismlar ishlashi uchun)
-    """
     try:
-        feed = feedparser.parse(rss_url)
+        r = requests.get(target_url, headers=HEADERS, timeout=10)
+        if r.status_code != 200:
+            print(f"Telegram scraping error, HTTP status: {r.status_code}")
+            return []
     except Exception as e:
-        print(f"Scraper error (RSS o'qishda): {e}")
+        print(f"Scraper network error: {e}")
         return []
 
-    new_posts = []
+    soup = BeautifulSoup(r.content, 'html.parser')
+    messages = soup.find_all('div', class_='tgme_widget_message')
     
-    # Eng yangi postlarni eng oxiridan ko'rib chiqish kerak zanjir odatda reverse-chrono bo'ladi
-    # Bizga esa xronologik tarzda kerak.
-    entries = reversed(feed.entries)
+    posts = []
     
-    for entry in entries:
-        post_id = entry.get('link', '') or entry.get('id', '')
+    for m in messages:
+        post_id = m.get('data-post')
         if not post_id:
             continue
             
-        text = entry.get('title', '') + "\n\n"
+        # 1. Matn
+        text_elem = m.find('div', class_='tgme_widget_message_text')
+        text = text_elem.get_text('\n', strip=True) if text_elem else ""
         
-        # Summary ichida HTML bo'lishi mumkin, ba'zan esa 'content' ichida bo'ladi
-        content_html = entry.get('summary', '') or entry.get('description', '')
-        if 'content' in entry and len(entry.content) > 0:
-            content_html = entry.content[0].value
-            
-        soup = BeautifulSoup(content_html, 'html.parser')
-        
-        # Rasmni topish (agar bo'lsa)
-        image_url = None
-        img_tag = soup.find('img')
-        if img_tag and img_tag.get('src'):
-            image_url = img_tag.get('src')
-            
-        if not image_url:
-            # Ba'zi RSS larda rasm (media) atributida, enclosure'da bo'lishi mumkin
-            if 'media_content' in entry and len(entry.media_content) > 0:
-                image_url = entry.media_content[0].get('url')
-            elif 'media_thumbnail' in entry and len(entry.media_thumbnail) > 0:
-                image_url = entry.media_thumbnail[0].get('url')
-            elif getattr(entry, 'enclosures', None):
-                for enc in entry.enclosures:
-                    if 'image' in getattr(enc, 'type', '') or 'image' in enc.get('type', ''):
-                        image_url = enc.get('href')
-                        break
-        
-        if not is_valid_image_url(image_url):
-            image_url = None
-
-        if not image_url and post_id.startswith('http'):
-            try:
-                import requests
-                r = requests.get(post_id, timeout=5)
-                if r.status_code == 200:
-                    page_soup = BeautifulSoup(r.content, 'html.parser')
-                    og_image = page_soup.find('meta', property='og:image')
-                    if og_image and og_image.get('content'):
-                        image_url = og_image['content']
-            except Exception:
-                pass
+        # 2. Rasmlar
+        photos = []
+        for p in m.find_all('a', class_='tgme_widget_message_photo_wrap'):
+            style = p.get('style', '')
+            if 'background-image:url(' in style:
+                try:
+                    img_url = style.split("background-image:url('")[1].split("')")[0]
+                    photos.append(img_url)
+                except IndexError:
+                    pass
+                    
+        # 3. Videolar va GIF lar
+        videos = []
+        is_gif = False
+        video_elems = m.find_all('video')
+        for v in video_elems:
+            v_src = v.get('src')
+            if v_src:
+                videos.append(v_src)
+            if v.has_attr('autoplay') or v.has_attr('loop'):
+                is_gif = True
                 
-        if not is_valid_image_url(image_url):
-            image_url = None
-        else:
-            import re
-            image_url = re.sub(r'-\d+x\d+(\.\w+)$', r'\1', image_url)
+        # 4. Hujjatlar / Fayllar
+        docs = []
+        doc_wraps = m.find_all('a', class_='tgme_widget_message_document_wrap')
+        for d in doc_wraps:
+            doc_href = d.get('href')
+            doc_title_elem = d.find('div', class_='tgme_widget_message_document_title')
+            doc_title = doc_title_elem.get_text(strip=True) if doc_title_elem else "fayl"
+            docs.append({'href': doc_href, 'title': doc_title})
 
-        # Video topish (agar bo'lsa)
-        video_url = extract_video_url(soup, entry)
-        
-        # Matnni tozalash (yangi qatorlarni saqlab qolish yaxshi)
-        clean_summary = soup.get_text('\n', strip=True)
-        if clean_summary and clean_summary != entry.get('title', ''):
-            text += clean_summary
-            
-        # ---------------- REKLAMA FILTRI ----------------
-        title_lower = entry.get('title', '').lower()
-        link_lower = post_id.lower()
-        
-        ad_keywords = ['deal', 'sale', 'sponsor', 'promoted', 'amazon', 'aliexpress', 'discount', '% off', 'coupon', 'woot']
-        is_ad = False
-        for kw in ad_keywords:
-            if kw in title_lower or kw in link_lower:
-                is_ad = True
-                break
-                
-        if is_ad:
-            print(f"Reklama po'sti o'tkazib yuborildi: {title_lower}")
+        # Hech qanday kontentsiz servis xabar bo'lsa o'tkazib yuborish
+        if not text and not photos and not videos and not docs:
             continue
-        # ------------------------------------------------
-            
-        new_posts.append({
+
+        # Reklama filtri
+        text_lower = text.lower()
+        ad_keywords = ['promoted', 'sponsor', 'reklama', 'skidka', 'coupon', '% off', 'woot']
+        if any(kw in text_lower for kw in ad_keywords):
+            print(f"Reklama po'sti o'tkazib yuborildi: {post_id}")
+            continue
+
+        posts.append({
             "id": post_id,
             "text": text,
-            "image": image_url,
-            "video": video_url
+            "photos": photos,
+            "videos": videos,
+            "is_gif": is_gif,
+            "docs": docs,
+            "image": photos[0] if photos else None,
+            "video": videos[0] if videos else None
         })
         
-    return new_posts
+    return posts
