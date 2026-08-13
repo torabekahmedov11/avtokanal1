@@ -6,6 +6,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMedia
 import db
 import scraper
 import ai_translator
+from telegraph_api import create_telegraph_page
 from config import TARGET_CHANNEL_ID, CHANNEL_LINK, ADMIN_ID
 from datetime import datetime
 import pytz
@@ -16,6 +17,11 @@ def get_tashkent_now():
     """O'zbekiston (Toshkent) vaqti bilan hozirgi vaqtni qaytaradi."""
     tz = pytz.timezone('Asia/Tashkent')
     return datetime.now(tz)
+
+def is_nighttime():
+    """Toshkent vaqti bo'yicha 23:00 va 07:00 oralig'i."""
+    now = get_tashkent_now()
+    return now.hour >= 23 or now.hour < 7
 
 def download_file_stream(url, timeout=15):
     """Media faylni URL dan byte stream sifatiga yuklab oladi (Telegram API uchun)."""
@@ -33,9 +39,11 @@ def download_file_stream(url, timeout=15):
         print(f"Media yuklash xatosi ({url}): {e}")
     return None
 
-def get_post_markup(original_url=None):
+def get_post_markup(telegraph_url=None):
     markup = InlineKeyboardMarkup(row_width=2)
     buttons = []
+    if telegraph_url:
+        buttons.append(InlineKeyboardButton("👉 Batafsil o'qish", url=telegraph_url))
     if CHANNEL_LINK:
         ch_link = CHANNEL_LINK if CHANNEL_LINK.startswith("http") else f"https://t.me/{CHANNEL_LINK.replace('@', '')}"
         buttons.append(InlineKeyboardButton("➕ Obuna bo'lish", url=ch_link))
@@ -47,7 +55,6 @@ def get_post_markup(original_url=None):
 def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, markup=None):
     """
     Postni barcha turdagi media bilan birga Telegram kanalga xavfsiz va ishonchli yuboradi.
-    Rasm, Video, GIF (animatsiya) va Fayl (hujjat) larni qo'llab-quvvatlaydi.
     """
     photos = post_data.get('photos', [])
     videos = post_data.get('videos', [])
@@ -71,7 +78,7 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
         try:
             return bot.send_photo(channel_id, p_url, caption=caption, parse_mode="HTML", reply_markup=markup)
         except Exception as e:
-            print(f"Rasm URL bilan yuborish feyl ({e}), fayl strm yuklanmoqda...")
+            print(f"Rasm URL bilan yuborish feyl ({e}), stream yuklanmoqda...")
             stream = download_file_stream(p_url)
             if stream:
                 try:
@@ -86,7 +93,7 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
             try:
                 return bot.send_animation(channel_id, v_url, caption=caption, parse_mode="HTML", reply_markup=markup)
             except Exception as e:
-                print(f"GIF URL feyl ({e}), video/stream ga o'tilmoqda...")
+                print(f"GIF URL feyl ({e}), stream ga o'tilmoqda...")
                 stream = download_file_stream(v_url)
                 if stream:
                     try:
@@ -129,7 +136,6 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
 def check_and_post_instantly(bot: telebot.TeleBot, force=False):
     """
     Telegram donor kanaldan yangi postlarni tekshiradi va DARHOL tarjima qilib bizning kanalga joylaydi.
-    Rejalashtirish va kutish yo'q!
     """
     donor_url = db.get_donor_url()
     last_id = db.get_last_id()
@@ -150,7 +156,15 @@ def check_and_post_instantly(bot: telebot.TeleBot, force=False):
         print(f"[{now_str}] Yangi postlar topilmadi.")
         return
 
-    # Ko'rilmagan yangi postlarni xronologik (eskisidan yangisiga) saralash
+    # Birinchi marta ulanayotganda (agar baza yangi bo'lsa), eski postlarni belgilab olamiz
+    if not last_id and db.get_seen_count() == 0 and not force:
+        print("Birinchi marta ulanmoqda: Donor kanaldagi mavjud postlar eslab qolindi.")
+        for p in all_posts:
+            db.mark_as_seen(p["id"])
+            db.set_last_id(p["id"])
+        return
+
+    # Ko'rilmagan yangi postlarni topish
     new_posts = []
     for post in all_posts:
         pid = post.get("id")
@@ -158,65 +172,65 @@ def check_and_post_instantly(bot: telebot.TeleBot, force=False):
             continue
         new_posts.append(post)
 
+    if force and not new_posts:
+        # Majburiy bosganda oxirgi postni qayta jo'natadi
+        new_posts = [all_posts[-1]]
+
     if not new_posts:
-        print(f"[{now_str}] Barcha postlar allaqachon kanalga joylangan.")
+        print(f"[{now_str}] Yangi post yo'q.")
         return
 
     print(f"🔥 {len(new_posts)} ta YANGI POST topildi! Darhol tarjima qilinib joylanmoqda...")
 
-    posted_count = 0
     for post in new_posts:
         pid = post.get("id")
         db.mark_as_seen(pid)
         db.set_last_id(pid)
 
         raw_text = post.get("text", "")
-        # Matn bo'lmasa lekin media bo'lsa
         if not raw_text:
-            if post.get("photos"):
-                raw_text = "📷 Surat"
-            elif post.get("videos"):
-                raw_text = "🎥 Video"
-            elif post.get("docs"):
-                raw_text = "📁 Fayl"
-            else:
-                continue
+            if post.get("photos"): raw_text = "📷 Surat"
+            elif post.get("videos"): raw_text = "🎥 Video"
+            elif post.get("docs"): raw_text = "📁 Fayl"
+            else: continue
 
         translated_text = ai_translator.translate_and_spice_up(raw_text)
 
         if not translated_text or "[FILTERED]" in translated_text:
-            print(f"Post filtrlandi yoki tarjima qilinmadi: {pid}")
+            print(f"Post filtrlandi: {pid}")
             continue
 
-        # Kanal shiorini qo'shish
-        slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin!\n👉 Kanalimiz: {CHANNEL_LINK}" if CHANNEL_LINK else ""
-        caption = translated_text + slogan
+        main_post, batafsil_post = ai_translator.parse_telegraph_response(translated_text)
 
-        markup = get_post_markup()
+        slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}" if CHANNEL_LINK else ""
+        caption = main_post + slogan
+
+        telegraph_url = None
+        if batafsil_post:
+            telegraph_url = create_telegraph_page(title="Batafsil Qo'llanma", html_content=batafsil_post)
+
+        markup = get_post_markup(telegraph_url)
 
         if TARGET_CHANNEL_ID:
             try:
                 send_post_with_media(bot, TARGET_CHANNEL_ID, caption, post, markup=markup)
-                posted_count += 1
                 print(f"✅ POST KANALGA JOYLANDI: {pid}")
             except Exception as e:
                 print(f"Post joylashda xatolik ({pid}): {e}")
         else:
             print(f"⚠️ TARGET_CHANNEL_ID sozlanmagan! Post joylanmadi: {pid}")
 
-    print(f"⚡ Jami {posted_count} ta yangi post tezkor joylandi.")
-
 def fetch_and_queue_posts(bot=None, force=False):
-    """Eski tugmalar bilan moslik uchun wrapper."""
+    """Admin menyusidagi 'Yangiliklar yig'ish' tugmasi uchun."""
     check_and_post_instantly(bot, force=force)
 
 def process_queue_and_post(bot: telebot.TeleBot):
-    """Eski tugmalar bilan moslik uchun wrapper."""
-    check_and_post_instantly(bot)
+    """Admin menyusidagi 'Post chiqarish' tugmasi uchun."""
+    check_and_post_instantly(bot, force=True)
 
 def setup_scheduler(bot: telebot.TeleBot):
     """
-    Donor Telegram kanalni har 1 daqiqada tekshiradigan tezkor avto-post tizimi.
+    Donor Telegram kanalni har 1 daqiqada tekshiradigan avto-post tizimi.
     """
     scheduler.add_job(
         check_and_post_instantly,
@@ -225,7 +239,6 @@ def setup_scheduler(bot: telebot.TeleBot):
         kwargs={"bot": bot}
     )
     
-    # Bot ishga tushishi bilan birinchi tekshiruv
     try:
         check_and_post_instantly(bot)
     except Exception as e:

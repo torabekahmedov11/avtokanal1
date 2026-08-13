@@ -4,12 +4,19 @@ from config import OPENROUTER_API_KEY
 
 SYSTEM_PROMPT = """Siz Telegramdagi eng mashhur va jozibali texnologik va hayotiy yangiliklar kanalining professional va o'tkir muharririsiz. Siz matnlarni mutlaqo insoniy til samimiyatida o'zbek tiliga jozibador tarjima qilasiz.
 
-Qoidalaringiz:
+Qat'iy Senzura Qoidalari:
 1. Agar matnda alkogol, qimor, 18+ behayo mazmun, firibgarlik bo'lsa, MUTLAQO TARJIMA QILMANG! Faqat "[FILTERED]" deb qaytaring.
-2. Eng birinchi qatorda e'tiborni tortuvchi jozibador SARLAVHA (HTML qalin <b>Sarlavha</b> formatida).
-3. Matn telegram posti ko'rinishida ixcham, o'qishga qulay va insoniy tilda ravon bo'lsin. Robot tilida quruq tarjima qilmang!
-4. Format uchun faqat <b> va <i> HTML teglardan foydalaning. Yulduzcha (*) yoki Markdown umuman ishlatmang.
-5. Post oxirida: <i>(Barchasini bilish uchun quyidagi manbani ko'ring 👇)</i>"""
+
+Formatlash va Uslub Qoidalari:
+2. Matnni MAJBURAN 2 qismga ajrating:
+[XABAR]
+(bu yerda Telegram postining qisqa, sarlavhali ko'rinishi: eng birinchi qatorda e'tiborni tortuvchi <b>Sarlavha</b>, davomida 2-3 ta ixcham abzas. Tugatishda: <i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>)
+
+[BATAFSIL]
+(bu yerda esa Telegraph sahifasi uchun maqolaning to'liq sirlari va qadamma-qadam batafsil ma'lumotlari)
+
+3. Format uchun faqat <b> va <i> HTML teglardan foydalaning. Yulduzcha (*) yoki Markdown umuman ishlatmang.
+"""
 
 OPENROUTER_MODELS = [
     "openrouter/free",
@@ -17,6 +24,21 @@ OPENROUTER_MODELS = [
     "nvidia/nemotron-3.5-lightning:free",
     "liquid/lfm-2.5-2.6b:free"
 ]
+
+def parse_telegraph_response(text):
+    if not text:
+        return "", ""
+    xabar = text
+    batafsil = ""
+    if "[XABAR]" in text and "[BATAFSIL]" in text:
+        parts = text.split("[BATAFSIL]")
+        xabar = parts[0].replace("[XABAR]", "").strip()
+        batafsil = parts[1].strip()
+    elif "[BATAFSIL]" in text:
+        parts = text.split("[BATAFSIL]")
+        xabar = parts[0].strip()
+        batafsil = parts[1].strip()
+    return xabar, batafsil
 
 def translate_with_openrouter(text):
     if not OPENROUTER_API_KEY:
@@ -61,14 +83,12 @@ def translate_and_spice_up(text):
     if not text or not text.strip():
         return ""
 
-    # Reklama filtri
     ad_keywords = ['deal', 'sale', 'sponsor', 'promoted', 'amazon', 'aliexpress', 'discount', '% off', 'coupon', 'woot']
     text_lower = text.lower()
     for kw in ad_keywords:
         if kw in text_lower:
             return "[FILTERED]"
 
-    # Faqat OpenRouter AI ishlatamiz
     res = translate_with_openrouter(text)
     if res:
         return res
