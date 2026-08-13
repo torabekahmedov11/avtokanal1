@@ -1,5 +1,6 @@
 import io
 import requests
+import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
@@ -12,6 +13,7 @@ from datetime import datetime
 import pytz
 
 scheduler = BackgroundScheduler(timezone='Asia/Tashkent')
+_process_lock = threading.Lock()
 
 def get_tashkent_now():
     """O'zbekiston (Toshkent) vaqti bilan hozirgi vaqtni qaytaradi."""
@@ -54,7 +56,7 @@ def get_post_markup(telegraph_url=None):
 
 def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, markup=None):
     """
-    Postni barcha turdagi media bilan birga Telegram kanalga xavfsiz va ishonchli yuboradi.
+    Postni barcha turdagi media bilan birga Telegram kanalga xavfsiz va dublikatsiz yuboradi.
     """
     photos = post_data.get('photos', [])
     videos = post_data.get('videos', [])
@@ -85,6 +87,8 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
                     return bot.send_photo(channel_id, stream, caption=caption, parse_mode="HTML", reply_markup=markup)
                 except Exception as e2:
                     print(f"Rasm stream yuborish ham feyl: {e2}")
+        # Rasm mavjud bo'lsa va yuborilgan bo'lsa (yoki feyl bo'lsa), takroriy text yubormaymiz!
+        return
 
     # 3. Video yoki GIF
     if videos:
@@ -99,7 +103,8 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
                     try:
                         return bot.send_animation(channel_id, stream, caption=caption, parse_mode="HTML", reply_markup=markup)
                     except Exception: pass
-        
+            return
+
         try:
             return bot.send_video(channel_id, v_url, caption=caption, parse_mode="HTML", reply_markup=markup)
         except Exception as e:
@@ -110,6 +115,7 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
                     return bot.send_video(channel_id, stream, caption=caption, parse_mode="HTML", reply_markup=markup)
                 except Exception as e2:
                     print(f"Video stream yuborish ham feyl: {e2}")
+        return
 
     # 4. Fayllar (Documents)
     if docs:
@@ -124,8 +130,9 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
                     try:
                         return bot.send_document(channel_id, stream, caption=caption, parse_mode="HTML", reply_markup=markup)
                     except Exception: pass
+        return
 
-    # 5. Faqat Matn (yoki media yuklash muvaffaqiyatsiz bo'lganda Fallback)
+    # 5. Faqat Matn (Mediasiz postlar uchun)
     try:
         return bot.send_message(channel_id, caption, parse_mode="HTML", reply_markup=markup)
     except Exception as e:
@@ -137,88 +144,95 @@ def check_and_post_instantly(bot: telebot.TeleBot, force=False):
     """
     Telegram donor kanaldan yangi postlarni tekshiradi va DARHOL tarjima qilib bizning kanalga joylaydi.
     """
-    donor_url = db.get_donor_url()
-    last_id = db.get_last_id()
-    now_str = get_tashkent_now().strftime('%Y-%m-%d %H:%M:%S')
-    print(f"[{now_str}] Donor Telegram kanal tekshirilmoqda... ({donor_url})")
+    global _process_lock
+    if not _process_lock.acquire(blocking=False):
+        print("Boshqa tekshiruv jarayoni bajarilmoqda, o'tkazib yuborildi.")
+        return
 
     try:
-        all_posts = scraper.scrape_telegram_channel(donor_url, last_id)
-    except Exception as e:
-        print(f"Scraping xatosi: {e}")
-        if bot and ADMIN_ID:
-            try:
-                bot.send_message(ADMIN_ID, f"⚠️ **Telegram Donor Skrapingida XATOLIK:**\n\n`{str(e)}`", parse_mode="Markdown")
-            except: pass
-        return
+        donor_url = db.get_donor_url()
+        last_id = db.get_last_id()
+        now_str = get_tashkent_now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"[{now_str}] Donor Telegram kanal tekshirilmoqda... ({donor_url})")
 
-    if not all_posts:
-        print(f"[{now_str}] Yangi postlar topilmadi.")
-        return
+        try:
+            all_posts = scraper.scrape_telegram_channel(donor_url, last_id)
+        except Exception as e:
+            print(f"Scraping xatosi: {e}")
+            if bot and ADMIN_ID:
+                try:
+                    bot.send_message(ADMIN_ID, f"⚠️ **Telegram Donor Skrapingida XATOLIK:**\n\n`{str(e)}`", parse_mode="Markdown")
+                except: pass
+            return
 
-    # Birinchi marta ulanayotganda (agar baza yangi bo'lsa), eski postlarni belgilab olamiz
-    if not last_id and db.get_seen_count() == 0 and not force:
-        print("Birinchi marta ulanmoqda: Donor kanaldagi mavjud postlar eslab qolindi.")
-        for p in all_posts:
-            db.mark_as_seen(p["id"])
-            db.set_last_id(p["id"])
-        return
+        if not all_posts:
+            print(f"[{now_str}] Yangi postlar topilmadi.")
+            return
 
-    # Ko'rilmagan yangi postlarni topish
-    new_posts = []
-    for post in all_posts:
-        pid = post.get("id")
-        if not pid or db.is_post_seen(pid):
-            continue
-        new_posts.append(post)
+        # Birinchi marta ulanayotganda (agar baza yangi bo'lsa), eski postlarni belgilab olamiz
+        if not last_id and db.get_seen_count() == 0 and not force:
+            print("Birinchi marta ulanmoqda: Donor kanaldagi mavjud postlar eslab qolindi.")
+            for p in all_posts:
+                db.mark_as_seen(p["id"])
+                db.set_last_id(p["id"])
+            return
 
-    if force and not new_posts:
-        # Majburiy bosganda oxirgi postni qayta jo'natadi
-        new_posts = [all_posts[-1]]
+        # Ko'rilmagan yangi postlarni topish
+        new_posts = []
+        for post in all_posts:
+            pid = post.get("id")
+            if not pid or db.is_post_seen(pid):
+                continue
+            new_posts.append(post)
 
-    if not new_posts:
-        print(f"[{now_str}] Yangi post yo'q.")
-        return
+        if force and not new_posts:
+            # Majburiy bosganda oxirgi postni jo'natadi
+            new_posts = [all_posts[-1]]
 
-    print(f"🔥 {len(new_posts)} ta YANGI POST topildi! Darhol tarjima qilinib joylanmoqda...")
+        if not new_posts:
+            print(f"[{now_str}] Yangi post yo'q.")
+            return
 
-    for post in new_posts:
-        pid = post.get("id")
-        db.mark_as_seen(pid)
-        db.set_last_id(pid)
+        print(f"🔥 {len(new_posts)} ta YANGI POST topildi! Darhol tarjima qilinib joylanmoqda...")
 
-        raw_text = post.get("text", "")
-        if not raw_text:
-            if post.get("photos"): raw_text = "📷 Surat"
-            elif post.get("videos"): raw_text = "🎥 Video"
-            elif post.get("docs"): raw_text = "📁 Fayl"
-            else: continue
+        for post in new_posts:
+            pid = post.get("id")
+            db.mark_as_seen(pid)
+            db.set_last_id(pid)
 
-        translated_text = ai_translator.translate_and_spice_up(raw_text)
+            raw_text = post.get("text", "")
+            photos = post.get("photos", [])
+            photo_url = photos[0] if photos else None
 
-        if not translated_text or "[FILTERED]" in translated_text:
-            print(f"Post filtrlandi: {pid}")
-            continue
+            # Vision AI bilan rasmli hamda matnli postlarga ishlov berish
+            translated_text = ai_translator.translate_and_spice_up(raw_text, photo_url=photo_url)
 
-        main_post, batafsil_post = ai_translator.parse_telegraph_response(translated_text)
+            if not translated_text or "[FILTERED]" in translated_text:
+                print(f"Post filtrlandi: {pid}")
+                continue
 
-        slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}" if CHANNEL_LINK else ""
-        caption = main_post + slogan
+            main_post, batafsil_post = ai_translator.parse_telegraph_response(translated_text)
 
-        telegraph_url = None
-        if batafsil_post:
-            telegraph_url = create_telegraph_page(title="Batafsil Qo'llanma", html_content=batafsil_post)
+            slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}" if CHANNEL_LINK else ""
+            caption = main_post + slogan
 
-        markup = get_post_markup(telegraph_url)
+            telegraph_url = None
+            if batafsil_post:
+                telegraph_url = create_telegraph_page(title="Batafsil Qo'llanma", html_content=batafsil_post)
 
-        if TARGET_CHANNEL_ID:
-            try:
-                send_post_with_media(bot, TARGET_CHANNEL_ID, caption, post, markup=markup)
-                print(f"✅ POST KANALGA JOYLANDI: {pid}")
-            except Exception as e:
-                print(f"Post joylashda xatolik ({pid}): {e}")
-        else:
-            print(f"⚠️ TARGET_CHANNEL_ID sozlanmagan! Post joylanmadi: {pid}")
+            markup = get_post_markup(telegraph_url)
+
+            if TARGET_CHANNEL_ID:
+                try:
+                    send_post_with_media(bot, TARGET_CHANNEL_ID, caption, post, markup=markup)
+                    print(f"✅ POST KANALGA JOYLANDI: {pid}")
+                except Exception as e:
+                    print(f"Post joylashda xatolik ({pid}): {e}")
+            else:
+                print(f"⚠️ TARGET_CHANNEL_ID sozlanmagan! Post joylanmadi: {pid}")
+
+    finally:
+        _process_lock.release()
 
 def fetch_and_queue_posts(bot=None, force=False):
     """Admin menyusidagi 'Yangiliklar yig'ish' tugmasi uchun."""
