@@ -1,8 +1,11 @@
 import requests
 import io
 import base64
-from PIL import Image
-import re
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 from config import OPENROUTER_API_KEY
 
 SYSTEM_PROMPT = """Siz Telegramdagi eng mashhur va jozibali texnologik va hayotiy yangiliklar kanalining professional va o'tkir muharririsiz. Siz matnlarni va rasmlardagi axborotlarni mutlaqo insoniy til samimiyatida o'zbek tiliga jozibador va tushunarli tarjima qilasiz.
@@ -22,10 +25,17 @@ Formatlash va Uslub Qoidalari:
 """
 
 OPENROUTER_MODELS = [
-    "openrouter/free",
     "google/gemma-4-31b-it:free",
+    "openrouter/free",
     "nvidia/nemotron-3.5-lightning:free",
     "liquid/lfm-2.5-2.6b:free"
+]
+
+# Vision-capable modellar (rasmni tahlil qila oladigan)
+VISION_MODELS = [
+    "google/gemma-4-31b-it:free",
+    "openrouter/free",
+    "meta-llama/llama-4-maverick:free",
 ]
 
 def parse_telegraph_response(text):
@@ -44,17 +54,27 @@ def parse_telegraph_response(text):
     return xabar, batafsil
 
 def convert_image_url_to_base64_jpeg(image_url):
-    """Rasm URL dan sifatli base64 JPEG tayyorlaydi."""
+    """Rasm URL dan sifatli base64 JPEG tayyorlaydi. Hajmi cheklangan."""
     try:
         r = requests.get(image_url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
-        if r.status_code == 200:
+        if r.status_code != 200:
+            print(f"Rasm yuklab bo'lmadi, status: {r.status_code}")
+            return None
+        if HAS_PIL:
             img = Image.open(io.BytesIO(r.content)).convert('RGB')
+            # Katta rasmlarni kichiklashtirish (API payload limiti uchun)
+            max_side = 1024
+            if max(img.size) > max_side:
+                img.thumbnail((max_side, max_side), Image.LANCZOS)
             buf = io.BytesIO()
-            img.save(buf, format='JPEG')
+            img.save(buf, format='JPEG', quality=80)
             b64_str = base64.b64encode(buf.getvalue()).decode('utf-8')
-            return f"data:image/jpeg;base64,{b64_str}"
+        else:
+            # Pillow o'rnatilmagan bo'lsa, xom baytlarni ishlatamiz
+            b64_str = base64.b64encode(r.content).decode('utf-8')
+        return f"data:image/jpeg;base64,{b64_str}"
     except Exception as e:
-        print(f"Rasm kovertatsiyasida xato: {e}")
+        print(f"Rasm konvertatsiyasida xato: {e}")
     return None
 
 def translate_image_with_vision(image_url, raw_text=""):
@@ -80,7 +100,7 @@ def translate_image_with_vision(image_url, raw_text=""):
     if raw_text and len(raw_text.strip()) > 5:
         user_prompt += f"\n\nQo'shimcha post matni: {raw_text}"
 
-    for model in OPENROUTER_MODELS:
+    for model in VISION_MODELS:
         payload = {
             "model": model,
             "messages": [

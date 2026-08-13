@@ -63,6 +63,11 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
     is_gif = post_data.get('is_gif', False)
     docs = post_data.get('docs', [])
 
+    # Telegram caption chegarasi: 1024 belgi (media postlar uchun)
+    has_media = bool(photos or videos or docs)
+    if has_media and len(caption) > 1024:
+        caption = caption[:1020] + "..."
+
     # 1. Ko'p rasmlar (Media group)
     if len(photos) > 1:
         try:
@@ -73,6 +78,8 @@ def send_post_with_media(bot: telebot.TeleBot, channel_id, caption, post_data, m
             return bot.send_media_group(channel_id, media=media_group)
         except Exception as e:
             print(f"MediaGroup yuborishda xato ({e}), bitta rasmga o'tilmoqda...")
+            # Agar media group feyl bo'lsa, faqat birinchi rasmga urinib ko'ramiz
+            # (keyingi 'if photos:' branchiga tushadi)
 
     # 2. Bitta rasm
     if photos:
