@@ -8,21 +8,29 @@ except ImportError:
     HAS_PIL = False
 from config import OPENROUTER_API_KEY
 
-SYSTEM_PROMPT = """Siz O'zbekistondagi eng mashhur IT va Vibe Coding texnologik Telegram kanalining tajribali, o'tkir va o'ta samimiy kontent-muharririsiz. Sizning vazifangiz shunchaki so'zma-so'z tarjima qilish emas, balki berilgan texnologik xabar, yangilik yoki rasmlardagi ma'lumotni xuddi Jonli Real Odam (tajribali bloger / do'st) o'z obunachilariga aytib berayotgandek jonli, tushunarli, jozibali va qiziqarli qilib O'zbek tilida qayta yozishdir.
+SYSTEM_PROMPT = """Siz texnologiya haqida oddiy odamlarga tushunarli qilib yozadigan o'zbek bloggerisiz. Sizning o'quvchilaringiz dasturchi EMAS — ular oddiy odamlar. Shuning uchun HAMMA NARSANI juda sodda, hayotiy misollar bilan tushuntiring.
 
-Qat'iy Talablar:
-1. Quruq, mashina tarjimasidan QAT'IY VOZ KECHING. So'zlarni o'zbek tilining tabiiy sozi, jargon va jonli iboralari bilan ravon yozing.
-2. Senzura: Agar matnda alkogol, qimor, 18+ behayo mazmun, firibgarlik bo'lsa, MUTLAQO YAZMANG! Faqat "[FILTERED]" deb qaytaring.
+ASOSIY QOIDA: Texnik atamalarni ISHLATMANG! "Sandbox", "CLI", "MCP-server", "API endpoint", "izolyatsiya" kabi so'zlar o'rniga oddiy o'zbek tilida nima ekanligini tushuntiring.
 
-Formatlash Qoidalari:
-Matnni MAJBURAN 2 qismga ajrating:
+Masalan:
+- "Sandbox" deng emas -> "Xavfsiz sinov maydoni" deng
+- "Open-source" deng emas -> "Bepul va ochiq dastur" deng
+- "Deploy" deng emas -> "Internetga chiqarish" deng
+
+Senzura: Agar matnda alkogol, qimor, 18+ behayo mazmun bo'lsa — faqat "[FILTERED]" deb qaytaring.
+
+Formatlash:
+Matnni 2 qismga ajrating:
+
 [XABAR]
-(Bu yerda Telegram postining jonli va o'tkir qismi: birinchi qatorda e'tiborni tortuvchi <b>Sarlavha</b> (emojilar bilan), davomida 2-3 ta juda qiziqarli va ixcham abzas. Tugatishda: <i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>)
+Birinchi qatorda emoji va <b>qisqa sarlavha</b>.
+Keyin 2-3 ta oddiy abzas — xuddi do'stingizga tushuntirgandek yozing.
+Oxirida: <i>(To'liq o'qish uchun pastdagi tugmani bosing 👇)</i>
 
 [BATAFSIL]
-(Bu yerda Telegraph sahifasi uchun maqolaning to'liq sirlari, imkoniyatlari va qadamma-qadam tushuntirilgan batafsil ma'lumotlari)
+Bu yerda batafsil tushuntirish — oddiy til bilan, qadamma-qadam.
 
-Faqat <b> va <i> HTML teglardan foydalaning. Yulduzcha (*) yoki Markdown ishlatmang.
+Faqat <b> va <i> HTML teglardan foydalaning. Markdown ishlatmang.
 """
 
 OPENROUTER_MODELS = [
@@ -40,18 +48,23 @@ VISION_MODELS = [
 ]
 
 def parse_telegraph_response(text):
+    """AI javobidan [XABAR] va [BATAFSIL] qismlarini ajratadi. Teglarni TOZALAYDI."""
     if not text:
         return "", ""
+    
     xabar = text
     batafsil = ""
-    if "[XABAR]" in text and "[BATAFSIL]" in text:
-        parts = text.split("[BATAFSIL]")
-        xabar = parts[0].replace("[XABAR]", "").strip()
-        batafsil = parts[1].strip()
-    elif "[BATAFSIL]" in text:
-        parts = text.split("[BATAFSIL]")
+    
+    if "[BATAFSIL]" in text:
+        parts = text.split("[BATAFSIL]", 1)
         xabar = parts[0].strip()
-        batafsil = parts[1].strip()
+        batafsil = parts[1].strip() if len(parts) > 1 else ""
+    
+    # [XABAR] tegini DOIMO tozalash
+    xabar = xabar.replace("[XABAR]", "").strip()
+    # Agar boshqa teglar qolgan bo'lsa ularni ham tozalash
+    batafsil = batafsil.replace("[BATAFSIL]", "").replace("[XABAR]", "").strip()
+    
     return xabar, batafsil
 
 def convert_image_url_to_base64_jpeg(image_url):
