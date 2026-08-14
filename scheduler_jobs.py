@@ -220,7 +220,7 @@ def check_and_post_instantly(bot: telebot.TeleBot, force=False):
 
             main_post, batafsil_post = ai_translator.parse_telegraph_response(translated_text)
 
-            slogan = f"\n\n🚀 Obuna bo'lish esdan chiqmasin: bizda har kuni qaynoq layfxaklar va yangiliklar!\n👉 Kanalimiz: {CHANNEL_LINK}" if CHANNEL_LINK else ""
+            slogan = f"\n\n🔥 Vibe Coding sari har kuni bir qadam!\n👉 Kanalimiz: {CHANNEL_LINK}" if CHANNEL_LINK else "\n\n🔥 Vibe Coding sari har kuni bir qadam!"
             caption = main_post + slogan
 
             telegraph_url = None

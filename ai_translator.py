@@ -8,20 +8,21 @@ except ImportError:
     HAS_PIL = False
 from config import OPENROUTER_API_KEY
 
-SYSTEM_PROMPT = """Siz Telegramdagi eng mashhur va jozibali texnologik va hayotiy yangiliklar kanalining professional va o'tkir muharririsiz. Siz matnlarni va rasmlardagi axborotlarni mutlaqo insoniy til samimiyatida o'zbek tiliga jozibador va tushunarli tarjima qilasiz.
+SYSTEM_PROMPT = """Siz O'zbekistondagi eng mashhur IT va Vibe Coding texnologik Telegram kanalining tajribali, o'tkir va o'ta samimiy kontent-muharririsiz. Sizning vazifangiz shunchaki so'zma-so'z tarjima qilish emas, balki berilgan texnologik xabar, yangilik yoki rasmlardagi ma'lumotni xuddi Jonli Real Odam (tajribali bloger / do'st) o'z obunachilariga aytib berayotgandek jonli, tushunarli, jozibali va qiziqarli qilib O'zbek tilida qayta yozishdir.
 
-Qat'iy Senzura Qoidalari:
-1. Agar matnda alkogol, qimor, 18+ behayo mazmun, firibgarlik bo'lsa, MUTLAQO TARJIMA QILMANG! Faqat "[FILTERED]" deb qaytaring.
+Qat'iy Talablar:
+1. Quruq, mashina tarjimasidan QAT'IY VOZ KECHING. So'zlarni o'zbek tilining tabiiy sozi, jargon va jonli iboralari bilan ravon yozing.
+2. Senzura: Agar matnda alkogol, qimor, 18+ behayo mazmun, firibgarlik bo'lsa, MUTLAQO YAZMANG! Faqat "[FILTERED]" deb qaytaring.
 
-Formatlash va Uslub Qoidalari:
-2. Matnni MAJBURAN 2 qismga ajrating:
+Formatlash Qoidalari:
+Matnni MAJBURAN 2 qismga ajrating:
 [XABAR]
-(bu yerda Telegram postining qisqa, sarlavhali ko'rinishi: eng birinchi qatorda e'tiborni tortuvchi <b>Sarlavha</b>, davomida 2-3 ta ixcham abzas. Tugatishda: <i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>)
+(Bu yerda Telegram postining jonli va o'tkir qismi: birinchi qatorda e'tiborni tortuvchi <b>Sarlavha</b> (emojilar bilan), davomida 2-3 ta juda qiziqarli va ixcham abzas. Tugatishda: <i>(Barchasini bilish uchun quyidagi tugmani bosing 👇)</i>)
 
 [BATAFSIL]
-(bu yerda esa Telegraph sahifasi uchun maqolaning to'liq sirlari va qadamma-qadam batafsil ma'lumotlari)
+(Bu yerda Telegraph sahifasi uchun maqolaning to'liq sirlari, imkoniyatlari va qadamma-qadam tushuntirilgan batafsil ma'lumotlari)
 
-3. Format uchun faqat <b> va <i> HTML teglardan foydalaning. Yulduzcha (*) yoki Markdown umuman ishlatmang.
+Faqat <b> va <i> HTML teglardan foydalaning. Yulduzcha (*) yoki Markdown ishlatmang.
 """
 
 OPENROUTER_MODELS = [
@@ -123,7 +124,7 @@ def translate_image_with_vision(image_url, raw_text=""):
                 if 'choices' in res and len(res['choices']) > 0:
                     content = res['choices'][0]['message']['content'].strip()
                     content = content.replace('**', '').replace('*', '')
-                    print(f"✅ Vision AI ({model}) rasm tahlili va tarjimasi muvaffaqiyatli!")
+                    print(f"OK: Vision AI ({model}) rasm tahlili va tarjimasi muvaffaqiyatli!")
                     return content
         except Exception as e:
             print(f"Vision AI ({model}) xatosi: {e}")
@@ -132,7 +133,7 @@ def translate_image_with_vision(image_url, raw_text=""):
 
 def translate_with_openrouter(text):
     if not OPENROUTER_API_KEY:
-        print("⚠️ OPENROUTER_API_KEY sozlanmagan! .env fayliga kalitni kiriting.")
+        print("OPENROUTER_API_KEY sozlanmagan! .env fayliga kalitni kiriting.")
         return None
 
     url = "https://openrouter.ai/api/v1/chat/completions"
@@ -160,7 +161,7 @@ def translate_with_openrouter(text):
                 if 'choices' in res and len(res['choices']) > 0:
                     content = res['choices'][0]['message']['content'].strip()
                     content = content.replace('**', '').replace('*', '')
-                    print(f"✅ OpenRouter AI ({model}) tarjimasi muvaffaqiyatli!")
+                    print(f"OK: OpenRouter AI ({model}) tarjimasi muvaffaqiyatli!")
                     return content
             else:
                 print(f"OpenRouter ({model}) javob kodi: {r.status_code} - {r.text[:150]}")
@@ -191,5 +192,6 @@ def translate_and_spice_up(text, photo_url=None):
     if res:
         return res
 
-    print("⚠️ OpenRouter AI javob bermadi yoki kalit yo'q.")
+    print("OpenRouter AI javob bermadi yoki kalit yo'q.")
     return None
+
