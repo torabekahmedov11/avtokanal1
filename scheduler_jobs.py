@@ -2,11 +2,13 @@ import io
 import requests
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 import db
 import scraper
 import ai_translator
+import vibe_lessons
 from telegraph_api import create_telegraph_page
 from config import TARGET_CHANNEL_ID, CHANNEL_LINK, ADMIN_ID
 from datetime import datetime
@@ -251,14 +253,26 @@ def process_queue_and_post(bot: telebot.TeleBot):
 
 def setup_scheduler(bot: telebot.TeleBot):
     """
-    Donor Telegram kanalni har 1 daqiqada tekshiradigan avto-post tizimi.
+    Donor Telegram kanalni har 1 daqiqada tekshiradigan avto-post tizimi
+    + Har kuni 20:00 da Vibe Coding darsligi.
     """
+    # RSS kanaldan yangiliklar — har 1 daqiqada
     scheduler.add_job(
         check_and_post_instantly,
         trigger="interval",
         minutes=1,
-        kwargs={"bot": bot}
+        kwargs={"bot": bot},
+        id="rss_checker"
     )
+    
+    # Vibe Coding kunlik darslik — har kuni 20:00 Toshkent vaqtida
+    scheduler.add_job(
+        vibe_lessons.post_daily_lesson,
+        trigger=CronTrigger(hour=20, minute=0, timezone='Asia/Tashkent'),
+        kwargs={"bot": bot},
+        id="daily_lesson"
+    )
+    print("Kunlik darslik taymeri sozlandi: Har kuni 20:00 (Toshkent vaqti)")
     
     try:
         check_and_post_instantly(bot)

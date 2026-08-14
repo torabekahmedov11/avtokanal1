@@ -53,7 +53,8 @@ def init_db():
                 "donor_url": DEFAULT_DONOR_URL,
                 "last_scraped_id": "",
                 "seen_ids": [],
-                "queued_posts": []
+                "queued_posts": [],
+                "lesson_number": 0
             }
             try:
                 with open(DB_FILE, 'w', encoding='utf-8') as f:
@@ -63,7 +64,7 @@ def init_db():
 
 def _load_unlocked():
     if not os.path.exists(DB_FILE):
-        return {"donor_url": DEFAULT_DONOR_URL, "last_scraped_id": "", "seen_ids": [], "queued_posts": []}
+        return {"donor_url": DEFAULT_DONOR_URL, "last_scraped_id": "", "seen_ids": [], "queued_posts": [], "lesson_number": 0}
     with open(DB_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -189,3 +190,14 @@ def get_seen_count():
         return len(_load_unlocked().get("seen_ids", []))
 
 
+def get_lesson_number():
+    """Hozirgi dars raqamini qaytaradi (0 dan boshlanadi)."""
+    with _db_lock:
+        return _load_unlocked().get("lesson_number", 0)
+
+def set_lesson_number(num):
+    """Dars raqamini yangilaydi."""
+    with _db_lock:
+        data = _load_unlocked()
+        data["lesson_number"] = num
+        _save_unlocked(data)

@@ -2,6 +2,7 @@ import telebot
 import db
 import ai_translator
 import scheduler_jobs
+import vibe_lessons
 from config import BOT_TOKEN, ADMIN_ID, TARGET_CHANNEL_ID
 from scheduler_jobs import setup_scheduler, scheduler, fetch_and_queue_posts, process_queue_and_post, check_and_post_instantly
 
@@ -18,6 +19,7 @@ def get_main_keyboard():
         telebot.types.KeyboardButton("📊 Holat"),
         telebot.types.KeyboardButton("🚀 Yangiliklar yig'ish"),
         telebot.types.KeyboardButton("📨 Post chiqarish"),
+        telebot.types.KeyboardButton("📚 Darslik"),
         telebot.types.KeyboardButton("⚙️ Donor sozlash")
     )
     return markup
@@ -35,6 +37,7 @@ def cmd_start(message):
         "📊 **Holat** - Bot va baza haqida barcha live ma'lumotlar\n"
         "🚀 **Yangiliklar yig'ish** - Hozirning o'zida post yig'ish\n"
         "📨 **Post chiqarish** - Kanalga bitta post chiqarish\n"
+        "📚 **Darslik** - Vibe Coding darsini hozir joylash\n"
         "⚙️ **Donor sozlash** - Donor RSS manbasini o'zgartirish"
     )
     bot.send_message(message.chat.id, text, parse_mode="Markdown", reply_markup=get_main_keyboard())
@@ -58,6 +61,8 @@ def cmd_status(message):
         f"🎯 **Donor RSS Telegram Manba:** `{donor}`\n"
         f"👁 **Eslab qolingan postlar (Baza):** {seen_count} ta\n"
         f"🔍 **Oxirgi o'qilgan post:** `{last_id}`\n\n"
+        f"📚 **Vibe Coding darsligi:** {db.get_lesson_number()}-dars tugatilgan\n"
+        f"⏰ **Keyingi darslik:** Har kuni 20:00 da\n\n"
         f"✨ **Qo'llab-quvvatlanadigan media:** Matn, Rasm(lar), Video, GIF, Hujjatlar"
     )
     bot.send_message(message.chat.id, text, parse_mode="Markdown", reply_markup=get_main_keyboard())
@@ -79,6 +84,25 @@ def cmd_force_post(message):
     bot.send_message(message.chat.id, "⏳ Tarjima qilinmoqda va kanalga jo'natilmoqda...")
     check_and_post_instantly(bot, force=True)
     bot.send_message(message.chat.id, "✅ Jarayon tugadi. Kanalni tekshiring.", reply_markup=get_main_keyboard())
+
+@bot.message_handler(func=lambda msg: is_admin(msg.from_user.id) and msg.text == "📚 Darslik")
+@bot.message_handler(commands=['lesson'])
+def cmd_lesson(message):
+    if not is_admin(message.from_user.id):
+        return
+    current = db.get_lesson_number()
+    next_num = current + 1
+    lesson_info = vibe_lessons.get_lesson_info(next_num)
+    bot.send_message(message.chat.id, 
+        f"📚 Hozirgi dars: #{current} tugatilgan\n"
+        f"Navbatdagi dars: #{next_num} — {lesson_info['title']}\n\n"
+        f"⏳ Dars generatsiya qilinmoqda va kanalga joylanmoqda..."
+    )
+    success = vibe_lessons.post_daily_lesson(bot)
+    if success:
+        bot.send_message(message.chat.id, f"✅ {next_num}-Dars kanalga joylandi!", reply_markup=get_main_keyboard())
+    else:
+        bot.send_message(message.chat.id, "❌ Dars joylanmadi. Loglarni tekshiring.", reply_markup=get_main_keyboard())
 
 @bot.message_handler(func=lambda msg: is_admin(msg.from_user.id) and msg.text == "⚙️ Donor sozlash")
 @bot.message_handler(commands=['settings'])
